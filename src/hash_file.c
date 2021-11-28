@@ -16,12 +16,17 @@
 }
 
 HT_ErrorCode HT_Init() {
-  //insert code here
   return HT_OK;
 }
 
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
-  //insert code here
+  HashTableptr dict = malloc(STARTING_HASH_BLOCKS * sizeof(HashTable));  //Δημιοργία ευρετηρίου
+  dict->global_depth = STARTING_GLOBAL_DEPTH;
+
+  dict->array = malloc(sizeof(HashBlock)); // Δημιουργία του array
+  for(int block = 0; block < STARTING_HASH_BLOCKS; block++){
+    dict->array[block].bucket = malloc(sizeof(Bucket));
+  }
   return HT_OK;
 }
 

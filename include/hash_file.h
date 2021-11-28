@@ -13,6 +13,30 @@ typedef struct Record {
 	char city[20];
 } Record;
 
+#define STARTING_HASH_BLOCKS 2
+#define STARTING_GLOBAL_DEPTH 1
+#define MAX_BUCKET_SIZE 5
+
+// Η δομή του bucket
+typedef struct Bucket {
+	int curr_count;
+	int local_depth;
+	Record values[MAX_BUCKET_SIZE];
+}Bucket;
+typedef Bucket* Bucketptr;
+
+typedef struct HashBlock{
+	int hash_value;
+	Bucketptr bucket;
+}HashBlock;
+typedef HashBlock* HashBlockptr;
+
+typedef struct HashTable{
+	HashBlockptr array;
+	int global_depth;
+}HashTable;
+typedef struct HashTable* HashTableptr;
+
 /*
  * Η συνάρτηση HT_Init χρησιμοποιείται για την αρχικοποίηση κάποιον δομών που μπορεί να χρειαστείτε. 
  * Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται HT_OK, ενώ σε διαφορετική περίπτωση κωδικός λάθους.
