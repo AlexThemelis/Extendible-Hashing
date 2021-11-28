@@ -1,6 +1,6 @@
 #include <stdio.h>
 
 int main(){
-    printf("geia\n");
+    printf("gamiesai agaphte\n");
     return 0;
 }
