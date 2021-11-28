@@ -14,7 +14,6 @@ typedef struct Record {
 } Record;
 
 #define STARTING_HASH_BLOCKS 2
-#define STARTING_GLOBAL_DEPTH 1
 #define MAX_BUCKET_SIZE 5
 
 // Η δομή του bucket

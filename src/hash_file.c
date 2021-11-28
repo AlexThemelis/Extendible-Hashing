@@ -21,7 +21,7 @@ HT_ErrorCode HT_Init() {
 
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   HashTableptr dict = malloc(STARTING_HASH_BLOCKS * sizeof(HashTable));  //Δημιοργία ευρετηρίου
-  dict->global_depth = STARTING_GLOBAL_DEPTH;
+  dict->global_depth = depth;
 
   dict->array = malloc(sizeof(HashBlock)); // Δημιουργία του array
   for(int block = 0; block < STARTING_HASH_BLOCKS; block++){
