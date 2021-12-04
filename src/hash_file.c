@@ -19,26 +19,6 @@ HT_ErrorCode HT_Init() {
   return HT_OK;
 }
 
-struct HTInfo{
-  char* info;
-  int global_depth;
-};
-
-struct HashBlock{
-  BF_Block* bucket;
-  int key;
-};
-
-struct HastTable{
-  struct HashBlock* array;
-  // int global_depth
-};
-
-struct Bucket{
-  int local_depth;
-  Record array_of_records[5];
-};
-
 //Το ίδιο θα ισχύει και για τα επόμενα, πχ block + 2*sizeof(Record) 
 //θα βάλει το 3ο Record κοκ. Σε γενική περίπτωση block + (i - 1) * sizeof(Record)
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
@@ -49,29 +29,28 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   BF_Block_Init(&info);
 
   int filedest;
-  CALL_OR_DIE(BF_CreateFile(filename));
+  BF_CreateFile(filename);
 
-  CALL_OR_DIE(BF_AllocateBlock(filedest, info));
-  char* info_ptr = BF_Block_GetData(info);        // το info έχει χώρο για ένα block
+  BF_AllocateBlock(filedest, info);
+  char* info_ptr = BF_Block_GetData(info);
+  
+  char* string = "5";
 
-  struct HTInfo HTInfo;
-  HTInfo.global_depth = depth;
-  HTInfo.info = "This is a HT";
+  char* dir_ptr = BF_Block_GetData(directory);
+  dir_ptr = malloc(sizeof(char)*15);
 
-  memcpy(info_ptr,&HTInfo,sizeof(HTInfo));
+  memcpy(dir_ptr,string,sizeof(char)*5);
 
-  CALL_OR_DIE(BF_AllocateBlock(filedest, directory));
-  char* directory_ptr = BF_Block_GetData(directory);  // δειχνει στην αρχή του directory
+  char* string2 = "10";
+  memcpy(dir_ptr + sizeof(char)*5 , string2, sizeof(sizeof(char)*5));
 
-  struct HastTable HashTable;
-  HashTable.array = malloc(sizeof(struct HashBlock) * depth);
-  memcpy(directory_ptr, &HashTable, sizeof(HashTable));
+  int x = atoi(dir_ptr + sizeof(char));
 
+  printf("data = %d\n", x);
   return HT_OK;
 }
 
 HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
-  //insert code here
   return HT_OK;
 }
 
