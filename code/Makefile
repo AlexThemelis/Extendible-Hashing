@@ -13,4 +13,5 @@ run:
 	./build/runner
 
 clean:
-	rm -f ./build/runner data1.db
+	rm -f ./build/runner data1.db \
+	rm -f data.db

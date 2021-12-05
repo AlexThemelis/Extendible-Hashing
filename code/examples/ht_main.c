@@ -70,6 +70,18 @@ int main() {
   CALL_OR_DIE(HT_CreateIndex(FILE_NAME, GLOBAL_DEPT));
   CALL_OR_DIE(HT_OpenIndex(FILE_NAME, &indexDesc)); 
 
+  BF_Block* block;
+  BF_Block_Init(&block);
+
+  /* ------------------------------------------------------------------------------------------ */
+  //Testing οτι και στην main έχουμε επιστρέψει σωστά το μπλοκ
+  BF_GetBlock(indexDesc,0,block);
+  char* data = BF_Block_GetData(block);
+
+  print_char(0,INT_SIZE,data);
+  print_char(5,BF_BUFFER_SIZE,data);
+  /* ------------------------------------------------------------------------------------------ */
+
   Record record;
   srand(12569874);
   int r;
@@ -90,7 +102,7 @@ int main() {
   printf("RUN PrintAllEntries\n");
   int id = rand() % RECORDS_NUM;
   CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
-  //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
+  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
 
 
   CALL_OR_DIE(HT_CloseFile(indexDesc));

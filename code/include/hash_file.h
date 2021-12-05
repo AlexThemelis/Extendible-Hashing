@@ -13,6 +13,9 @@ typedef struct Record {
 	char city[20];
 } Record;
 
+void print_char(int start, int len, char* string);
+#define INT_SIZE 5
+
 /*
  * Η συνάρτηση HT_Init χρησιμοποιείται για την αρχικοποίηση κάποιον δομών που μπορεί να χρειαστείτε. 
  * Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται HT_OK, ενώ σε διαφορετική περίπτωση κωδικός λάθους.
