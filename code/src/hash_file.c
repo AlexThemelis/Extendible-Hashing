@@ -54,7 +54,22 @@ char* toBinary(int n, int len)
 int hashFunction(int id, int depth){
   char* binary = toBinary(id, depth);
   binary = reverse(binary);
-  return (int) strtol(binary, NULL, 2);
+  return (int) strtol(binary, NULL, 2) + 2; //γιατι τα buckets ξεκινανε απο την θεση 2//
+  //TODO το +2 μπορει να πρεπει να αλλαξει αν επεκταθει το dict
+}
+
+char* get_string(int start, int len, char* src){
+  char* substring = malloc(sizeof(char)*len);
+  strncpy(substring, &src[start], len);
+  substring[len - 1] = '\0';
+  return substring;
+}
+
+int get_int(int start, int len, char* src){
+  char* data = get_string(start, len, src);
+  int data_int = atoi(data);
+  free(data);
+  return data_int;
 }
 
 typedef struct info{
@@ -100,13 +115,16 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
     free(key);
   }
 
-  //Δεσμέυουμε 4 buckets blocks για το αρχείο και τα αρχικοποιούμε
-  for(int bucket=0; bucket<4; bucket++){
+  //Δεσμέυουμε 4 buckets blocks για το αρχείο και τα αρχικοποιούμε (local + counter)
+  for(int bucket=0; bucket< pow(2,depth); bucket++){
     if(BF_AllocateBlock(HT_info.index, block) != BF_OK)
       return HT_ERROR;
     char* block_data = BF_Block_GetData(block);
     char* local_depth = itos(depth);
     memcpy(block_data, local_depth, sizeof(local_depth));
+    
+    //Το 0 ειναι το counter των records
+    memcpy(block_data + sizeof(char)*INT_SIZE, "0\0", strlen("0\0"));
     free(local_depth);
   }
 
@@ -115,7 +133,6 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   char* data = BF_Block_GetData(block);
   char* depth_str = itos(depth);
 
-  //Το κάνουμε copy και μετά free
   if(data != NULL && depth_str != NULL){
     memcpy(data, depth_str, strlen(depth_str));
     free(depth_str);
@@ -123,21 +140,13 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   else{
     return HT_ERROR;
   }
-
-  //Κάνουμε copy το string μετά τον αριθμό
   memcpy(data + sizeof(char)*INT_SIZE, "This is HT struct \0", strlen("This is HT struct \0"));
 
-  //Για testing βλέπουμε άμα έχει γίνει η αντιγραφή και η Δημιουργία των blocks
-  /* ------------------------------------------------------------------------------------------ */
   int num_blocks;
   if(BF_GetBlockCounter(HT_info.index,&num_blocks) != BF_OK)
     BF_PrintError(BF_GetBlockCounter(HT_info.index,&num_blocks));
   else
     printf("Number of blocks:%d\n",num_blocks);
-
-  // print_char(0, BF_BUFFER_SIZE, data);
-  // print_char(INT_SIZE, BF_BUFFER_SIZE, data);
-  /* ------------------------------------------------------------------------------------------ */
 
   //Τα κανουμε όλα dirty και unpin
   for(int i=0; i<num_blocks; i++){
@@ -182,13 +191,70 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
   return HT_OK;
 }
 
+//Χωράνε 5 records σε καθε bucket
+int store_record(Record record, char* data){
+
+  //Σιγουρα γραφουμε μετα το ΙΝΤ_ΜΑΧ => local depth
+  int count = get_int(INT_SIZE, INT_SIZE, data);
+
+  if(count == 5){
+    //Υπερχειλιση
+    return -1;
+  }
+
+  char* id_string = itos(record.id);
+  unsigned long offset = sizeof(char)*INT_SIZE*2 + sizeof(char)*RECORD_SIZE*count;
+  memcpy(data + offset, id_string, strlen(id_string));
+  offset += sizeof(char)*INT_SIZE;
+  memcpy(data + offset, record.name, strlen(record.name));
+  offset += sizeof(char)*NAME_SIZE;
+  memcpy(data + offset, record.surname, strlen(record.surname));
+  offset += sizeof(char)*SURNAME_SIZE;
+  memcpy(data + offset, record.city, strlen(record.city));
+
+
+  //πρεπει να το αποθηκευσουμε
+  count++;
+  char* count_string = itos(count);
+  memcpy(data + sizeof(char)*INT_SIZE, count_string, strlen(count_string));
+  free(count_string);
+
+  return 0;
+}
+
 HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
-  //insert code here
+
+  BF_Block* block;
+  BF_Block_Init(&block);
+
+  BF_GetBlock(indexDesc,1,block);
+  char* data  = BF_Block_GetData(block);
+  int depth = get_int(0,INT_SIZE,data);
+
+  int id = record.id;
+  int hash_value = hashFunction(id,depth);
+
+  BF_GetBlock(indexDesc, hash_value, block);
+  data = BF_Block_GetData(block);
+  if(store_record(record,data) == 0)
+    printf("record stored\n");
+
   return HT_OK;
 }
 
 HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
-  //insert code here
+  //Kανε και για συγκεκριμενο ....
+  BF_Block *block;
+  BF_Block_Init(&block);
+
+  int num_blocks;
+  BF_GetBlockCounter(HT_info.index,&num_blocks);
+  
+  for(int i=0; i<num_blocks-2; i++){
+    BF_GetBlock(indexDesc, i+2, block);
+    char* data = BF_Block_GetData(block);
+    print_block(data);
+  }
   return HT_OK;
 }
 

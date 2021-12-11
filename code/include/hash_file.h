@@ -15,6 +15,14 @@ typedef struct Record {
 
 void print_char(int start, int len, char* string);
 #define INT_SIZE 5
+#define NAME_SIZE 15
+#define SURNAME_SIZE 20
+#define CITY_SIZE 20
+#define RECORD_SIZE (INT_SIZE + NAME_SIZE + SURNAME_SIZE + CITY_SIZE)
+
+int get_int(int start, int len, char* src);
+char* get_string(int start, int len, char* src);
+void print_block(char* data);
 
 /*
  * Η συνάρτηση HT_Init χρησιμοποιείται για την αρχικοποίηση κάποιον δομών που μπορεί να χρειαστείτε. 

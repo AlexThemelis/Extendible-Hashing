@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+
 #include <time.h>
 #include "bf.h"
 #include "hash_file.h"
@@ -61,9 +63,30 @@ const char* cities[] = {
     }                         \
   }
 
+void print_block(char* data){
+  //Σιγουρα γραφουμε μετα το ΙΝΤ_ΜΑΧ => local depth
+  int count = get_int(INT_SIZE, INT_SIZE, data);
+  unsigned long offset = 0;
+
+  printf("\nlocal depth: %.*s\n", INT_SIZE, data);
+  offset += sizeof(char)*INT_SIZE;
+  printf("counter: %.*s\n", INT_SIZE, data + offset);
+  offset += sizeof(char)*INT_SIZE;
+
+  for(int i=0; i<count; i++){
+    printf("Id: %.*s\n", INT_SIZE, data + offset);
+    offset += sizeof(char)*INT_SIZE;
+    printf("Name: %.*s\n", NAME_SIZE, data + offset);
+    offset += sizeof(char)*NAME_SIZE;
+    printf("Name: %.*s\n", SURNAME_SIZE, data + offset);
+    offset += sizeof(char)*SURNAME_SIZE;
+    printf("Name: %.*s\n\n", CITY_SIZE, data + offset);
+    offset += sizeof(char)*CITY_SIZE;
+  }
+}
+
 int main() {
   BF_Init(LRU);
-  
   CALL_OR_DIE(HT_Init());
 
   int indexDesc;
@@ -73,34 +96,11 @@ int main() {
   BF_Block* block;
   BF_Block_Init(&block);
 
-  /* ------------------------------------------------------------------------------------------ */
-  //Testing οτι και στην main έχουμε επιστρέψει σωστά το μπλοκ
-  BF_GetBlock(indexDesc,0,block);
-  char* data = BF_Block_GetData(block);
-
-  print_char(0,INT_SIZE,data);
-  print_char(5,BF_BUFFER_SIZE,data);
-
-  BF_GetBlock(indexDesc,1,block);
-  char* dict = BF_Block_GetData(block);
-
-  print_char(0,INT_SIZE,dict);
-  print_char(5,BF_BUFFER_SIZE,dict);
-  print_char(10,BF_BUFFER_SIZE,dict);
-  print_char(15,BF_BUFFER_SIZE,dict);
-
-  for(int i=3; i<=6; i++){
-    BF_GetBlock(indexDesc,i,block);
-    char* local = BF_Block_GetData(block);
-    print_char(0,INT_SIZE,local);
-  }
-  /* ------------------------------------------------------------------------------------------ */
-
   Record record;
   srand(12569874);
   int r;
   printf("Insert Entries\n");
-  for (int id = 0; id < RECORDS_NUM; ++id) {
+  for (int id = 0; id < 2; ++id) {
     // create a record
     record.id = id;
     r = rand() % 12;
@@ -113,9 +113,13 @@ int main() {
     CALL_OR_DIE(HT_InsertEntry(indexDesc, record));
   }
 
+  // BF_GetBlock(indexDesc,2,block);
+  // char* bucket = BF_Block_GetData(block);
+  // print_block(bucket);
+
   printf("RUN PrintAllEntries\n");
   int id = rand() % RECORDS_NUM;
-  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
+  //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
   CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
 
 
