@@ -80,6 +80,20 @@ int main() {
 
   print_char(0,INT_SIZE,data);
   print_char(5,BF_BUFFER_SIZE,data);
+
+  BF_GetBlock(indexDesc,1,block);
+  char* dict = BF_Block_GetData(block);
+
+  print_char(0,INT_SIZE,dict);
+  print_char(5,BF_BUFFER_SIZE,dict);
+  print_char(10,BF_BUFFER_SIZE,dict);
+  print_char(15,BF_BUFFER_SIZE,dict);
+
+  for(int i=3; i<=6; i++){
+    BF_GetBlock(indexDesc,i,block);
+    char* local = BF_Block_GetData(block);
+    print_char(0,INT_SIZE,local);
+  }
   /* ------------------------------------------------------------------------------------------ */
 
   Record record;

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "bf.h"
 #include "hash_file.h"
@@ -27,17 +28,47 @@ void print_char(int start, int len, char* string){
   printf("Print string: %.*s\n", len, string + start);
 }
 
+char* reverse(char* s){
+  int i,swap;
+  int new = strlen(s);
+
+  for(i =0; i<new/2; i++){
+    swap = s[i];
+    s[i]=s[new - 1 -i];
+    s[new - 1 - i] = swap;
+  }
+  return s;
+}
+
+char* toBinary(int n, int len)
+{
+    char* binary = (char*)malloc(sizeof(char) * len);
+    int k = 0;
+    for (unsigned i = (1 << len - 1); i > 0; i = i / 2) {
+        binary[k++] = (n & i) ? '1' : '0';
+    }
+    binary[k] = '\0';
+    return binary;
+}
+
+int hashFunction(int id, int depth){
+  char* binary = toBinary(id, depth);
+  binary = reverse(binary);
+  return (int) strtol(binary, NULL, 2);
+}
+
 typedef struct info{
   int index;
 }Info;
 
 HT_ErrorCode HT_Init() {
-  //insert code here
+  //global table απο τα ανοικτα files
   return HT_OK;
 }
 
 Info HT_info;
 
+//1 block => 1 bucket
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
 
   //Δίνουμε οντότητα στην δομή
@@ -58,18 +89,30 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   //Δεσμέυουμε directory block για το αρχείο
   if(BF_AllocateBlock(HT_info.index, block) != BF_OK)
     return HT_ERROR;
-  
-  //Δεσμέυουμε 4 buckets blocks για το αρχείο
+
+  //Επεξεργασία και αρχικοποιηση του dict block
+  BF_GetBlock(HT_info.index, 1, block);
+  char* dict = BF_Block_GetData(block);
+
+  for (int i=0; i< pow(2,depth); i++){
+    char* key  = itos(i+2);
+    memcpy(dict + sizeof(char)*INT_SIZE*i, key, strlen(key));
+    free(key);
+  }
+
+  //Δεσμέυουμε 4 buckets blocks για το αρχείο και τα αρχικοποιούμε
   for(int bucket=0; bucket<4; bucket++){
     if(BF_AllocateBlock(HT_info.index, block) != BF_OK)
       return HT_ERROR;
+    char* block_data = BF_Block_GetData(block);
+    char* local_depth = itos(depth);
+    memcpy(block_data, local_depth, sizeof(local_depth));
+    free(local_depth);
   }
 
   //Επεξεργαζομαστε το info block
   BF_GetBlock(HT_info.index, 0, block);
   char* data = BF_Block_GetData(block);
-
-  //Μετατρέπουμε το int depth σε char* depth
   char* depth_str = itos(depth);
 
   //Το κάνουμε copy και μετά free
@@ -84,9 +127,6 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   //Κάνουμε copy το string μετά τον αριθμό
   memcpy(data + sizeof(char)*INT_SIZE, "This is HT struct \0", strlen("This is HT struct \0"));
 
-  //To κάνουμε dirty
-  BF_Block_SetDirty(block);
-
   //Για testing βλέπουμε άμα έχει γίνει η αντιγραφή και η Δημιουργία των blocks
   /* ------------------------------------------------------------------------------------------ */
   int num_blocks;
@@ -99,6 +139,14 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   // print_char(INT_SIZE, BF_BUFFER_SIZE, data);
   /* ------------------------------------------------------------------------------------------ */
 
+  //Τα κανουμε όλα dirty και unpin
+  for(int i=0; i<num_blocks; i++){
+    BF_GetBlock(HT_info.index,i,block);
+    BF_Block_SetDirty(block);
+    BF_UnpinBlock(block);
+  }
+
+  BF_CloseFile(HT_info.index);
   return HT_OK;
 }
 
