@@ -113,10 +113,6 @@ int main() {
     CALL_OR_DIE(HT_InsertEntry(indexDesc, record));
   }
 
-  // BF_GetBlock(indexDesc,2,block);
-  // char* bucket = BF_Block_GetData(block);
-  // print_block(bucket);
-
   printf("RUN PrintAllEntries\n");
   int id = rand() % RECORDS_NUM;
   //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));

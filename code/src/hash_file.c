@@ -72,6 +72,14 @@ int get_int(int start, int len, char* src){
   return data_int;
 }
 
+void make_dict(int depth, char* data){
+  for (int i=0; i< pow(2,depth); i++){
+    char* key  = itos(i+2);
+    memcpy(data + sizeof(char)*INT_SIZE*i, key, strlen(key));
+    free(key);
+  }
+}
+
 typedef struct info{
   int index;
 }Info;
@@ -108,12 +116,7 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   //Επεξεργασία και αρχικοποιηση του dict block
   BF_GetBlock(HT_info.index, 1, block);
   char* dict = BF_Block_GetData(block);
-
-  for (int i=0; i< pow(2,depth); i++){
-    char* key  = itos(i+2);
-    memcpy(dict + sizeof(char)*INT_SIZE*i, key, strlen(key));
-    free(key);
-  }
+  make_dict(depth,dict);
 
   //Δεσμέυουμε 4 buckets blocks για το αρχείο και τα αρχικοποιούμε (local + counter)
   for(int bucket=0; bucket< pow(2,depth); bucket++){
@@ -228,16 +231,35 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   BF_Block_Init(&block);
 
   BF_GetBlock(indexDesc,1,block);
-  char* data  = BF_Block_GetData(block);
-  int depth = get_int(0,INT_SIZE,data);
+  char* dict  = BF_Block_GetData(block);
+  int global_depth = get_int(0,INT_SIZE,dict);
 
   int id = record.id;
-  int hash_value = hashFunction(id,depth);
+  int hash_value = hashFunction(id,global_depth);
 
   BF_GetBlock(indexDesc, hash_value, block);
-  data = BF_Block_GetData(block);
-  if(store_record(record,data) == 0)
+  char* bucket = BF_Block_GetData(block);
+  int local_depth = get_int(0,INT_SIZE,bucket);
+
+  if(store_record(record,bucket) == 0)
     printf("record stored\n");
+  else{
+
+    printf("not stored\n");
+
+    //case 1
+    if(local_depth == global_depth){
+      //ενημερωση του global depth
+      char* new_global_depth = itos(global_depth + 1);
+      memcpy(dict,new_global_depth,strlen(new_global_depth));
+
+      //ενημερωση του local depth
+      char* new_local_depth = itos(local_depth + 1);
+      memcpy(dict,new_local_depth,strlen(new_local_depth));
+
+      
+    }
+  }
 
   return HT_OK;
 }
