@@ -51,11 +51,11 @@ char* toBinary(int n, int len)
     return binary;
 }
 
-int hashFunction(int id, int depth){
+char* hashFunction(int id, int depth){
   char* binary = toBinary(id, depth);
   binary = reverse(binary);
-  return (int) strtol(binary, NULL, 2) + 2; //γιατι τα buckets ξεκινανε απο την θεση 2//
-  //TODO το +2 μπορει να πρεπει να αλλαξει αν επεκταθει το dict
+  int new_id = (int) strtol(binary, NULL, 2);
+  return toBinary(new_id,depth);
 }
 
 char* get_string(int start, int len, char* src){
@@ -73,10 +73,93 @@ int get_int(int start, int len, char* src){
 }
 
 void make_dict(int depth, char* data){
+  unsigned long offset = 0;
   for (int i=0; i< pow(2,depth); i++){
-    char* key  = itos(i+2);
-    memcpy(data + sizeof(char)*INT_SIZE*i, key, strlen(key));
+    char* key = itos(i);
+    memcpy(data + offset, key, strlen(key));
+    offset += sizeof(char)*INT_SIZE;
+
+    char* pointer = itos(i+2);
+    memcpy(data + offset, pointer, strlen(pointer));
+    offset += sizeof(char)*INT_SIZE;
+
     free(key);
+    free(pointer);
+  }
+}
+
+void expand_dict(int new_depth, char* dict, int overflowed_bucket){
+
+  unsigned long offset = 0;
+  for (int i=0; i< pow(2,new_depth); i++){
+
+    char* pointer = itos(i+2);
+
+    if(overflowed_bucket == atoi(pointer)){
+      offset += sizeof(char)*INT_SIZE*2;
+
+    }
+    else if(i <= pow(2,new_depth - 1)){
+      offset += sizeof(char)*INT_SIZE*2;
+
+    }
+    else{
+      char* key = itos(i);
+      memcpy(dict + offset, key, strlen(key));
+
+      offset += sizeof(char)*INT_SIZE;
+      
+      /*
+
+        συγκρινουμε το key με τα παλαιοτερα και ψαχνοουμε αυτο που του τεριαζει το περισσοτερο "κατα -1"
+        και παιρνουμε το pointer του
+
+
+      */
+
+      free(key);
+    }
+    free(pointer);
+  }
+
+}
+
+int get_bucket(char* hash_value, int depth, char* dict){
+  int len = pow(2,depth);
+  unsigned long offset = 0;
+
+  for(int i=0; i<len; i++){
+
+    int key = get_int(offset, INT_SIZE, dict);
+    char* binary_key = toBinary(key,depth);
+
+    offset += sizeof(char)*INT_SIZE;
+    int pointer = get_int(offset, INT_SIZE, dict);
+
+    offset += sizeof(char)*INT_SIZE;
+
+    if(strcmp(binary_key,hash_value) == 0){
+      return pointer;
+    }
+  }
+  return -1;
+}
+
+void print_hash_table(char* dict, int depth){
+  int len = pow(2,depth);
+  unsigned long offset = 0;
+
+  for(int i=0; i<len; i++){
+
+    int key = get_int(offset, INT_SIZE, dict);
+    char* binary_key = toBinary(key,depth);
+    printf("key: %s ",binary_key);
+
+    offset += sizeof(char)*INT_SIZE;
+    int pointer = get_int(offset, INT_SIZE, dict);
+    printf("pointer: %d\n",pointer);
+
+    offset += sizeof(char)*INT_SIZE;      
   }
 }
 
@@ -117,6 +200,7 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   BF_GetBlock(HT_info.index, 1, block);
   char* dict = BF_Block_GetData(block);
   make_dict(depth,dict);
+  print_hash_table(dict,depth);
 
   //Δεσμέυουμε 4 buckets blocks για το αρχείο και τα αρχικοποιούμε (local + counter)
   for(int bucket=0; bucket< pow(2,depth); bucket++){
@@ -230,16 +314,22 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   BF_Block* block;
   BF_Block_Init(&block);
 
-  BF_GetBlock(indexDesc,1,block);
-  char* dict  = BF_Block_GetData(block);
-  int global_depth = get_int(0,INT_SIZE,dict);
+  BF_GetBlock(indexDesc,0,block);
+  char* info  = BF_Block_GetData(block);
+  int global_depth = get_int(0,INT_SIZE,info);
 
   int id = record.id;
-  int hash_value = hashFunction(id,global_depth);
+  char* hash_value = hashFunction(id,global_depth);
 
-  BF_GetBlock(indexDesc, hash_value, block);
+  BF_GetBlock(indexDesc,1,block);
+  char* dict  = BF_Block_GetData(block);
+
+  int pointer = get_bucket(hash_value,global_depth,dict);
+
+  BF_GetBlock(indexDesc, pointer, block);
   char* bucket = BF_Block_GetData(block);
   int local_depth = get_int(0,INT_SIZE,bucket);
+
 
   if(store_record(record,bucket) == 0)
     printf("record stored\n");
@@ -251,16 +341,16 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     if(local_depth == global_depth){
       //ενημερωση του global depth
       char* new_global_depth = itos(global_depth + 1);
-      memcpy(dict,new_global_depth,strlen(new_global_depth));
+      memcpy(info,new_global_depth,strlen(new_global_depth));
 
       //ενημερωση του local depth
       char* new_local_depth = itos(local_depth + 1);
-      memcpy(dict,new_local_depth,strlen(new_local_depth));
+      memcpy(bucket,new_local_depth,strlen(new_local_depth));
 
-      
+      //expand_dict(global_depth+1,dict,pointer);
+
     }
   }
-
   return HT_OK;
 }
 
