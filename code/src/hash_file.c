@@ -17,6 +17,7 @@
   }                         \
 }
 
+//make int to string
 char* itos(int number){
   char* number_str = malloc(sizeof(char)*5);
   sprintf(number_str, "%d", number);
@@ -24,10 +25,12 @@ char* itos(int number){
   return number_str;
 }
 
+//prints the string from start to len
 void print_char(int start, int len, char* string){
   printf("Print string: %.*s\n", len, string + start);
 }
 
+//reversing a string
 char* reverse(char* s){
   int i,swap;
   int new = strlen(s);
@@ -40,17 +43,38 @@ char* reverse(char* s){
   return s;
 }
 
-char* toBinary(int n, int len)
+//binary representation of a int
+char* toBinary(int number, int len)
 {
     char* binary = (char*)malloc(sizeof(char) * len);
     int k = 0;
     for (unsigned i = (1 << len - 1); i > 0; i = i / 2) {
-        binary[k++] = (n & i) ? '1' : '0';
+        binary[k++] = (number & i) ? '1' : '0';
     }
     binary[k] = '\0';
     return binary;
 }
 
+//pritns the directory -> keys with pointers
+void print_hash_table(char* dict, int depth){
+  int len = pow(2,depth);
+  unsigned long offset = 0;
+
+  for(int i=0; i<len; i++){
+
+    int key = get_int(offset, INT_SIZE, dict);
+    char* binary_key = toBinary(key,depth);
+    printf("key: %s ",binary_key);
+
+    offset += sizeof(char)*INT_SIZE;
+    int pointer = get_int(offset, INT_SIZE, dict);
+    printf("pointer: %d\n",pointer);
+
+    offset += sizeof(char)*INT_SIZE;      
+  }
+}
+
+//our hash function
 char* hashFunction(int id, int depth){
   char* binary = toBinary(id, depth);
   binary = reverse(binary);
@@ -58,6 +82,7 @@ char* hashFunction(int id, int depth){
   return toBinary(new_id,depth);
 }
 
+//gets a specific part from src string
 char* get_string(int start, int len, char* src){
   char* substring = malloc(sizeof(char)*len);
   strncpy(substring, &src[start], len);
@@ -65,6 +90,7 @@ char* get_string(int start, int len, char* src){
   return substring;
 }
 
+//from a string we get the int from specific position
 int get_int(int start, int len, char* src){
   char* data = get_string(start, len, src);
   int data_int = atoi(data);
@@ -72,6 +98,13 @@ int get_int(int start, int len, char* src){
   return data_int;
 }
 
+int get_last_bucket(int index){
+  int num;
+  BF_GetBlockCounter(index,&num);
+  return num;
+}
+
+//makes the the original directory(hash table)
 void make_dict(int depth, char* data){
   unsigned long offset = 0;
   for (int i=0; i< pow(2,depth); i++){
@@ -88,42 +121,53 @@ void make_dict(int depth, char* data){
   }
 }
 
-void expand_dict(int new_depth, char* dict, int overflowed_bucket){
+//expands the directory(hash table) when we encounter an overflow
+void expand_dict(int new_depth, char* dict, int overflowed_bucket, int last){
 
-  unsigned long offset = 0;
+  int size = pow(2,new_depth-1);
+  int temp_keys[size];
+  int temp_pointers[size];
+  int dict_offset = pow(2,new_depth-1);
+  int bit_offset = 0;
+
   for (int i=0; i< pow(2,new_depth); i++){
 
-    char* pointer = itos(i+2);
+    if(i < pow(2,new_depth-1)){
+      int key = get_int(bit_offset,INT_SIZE,dict);
+      temp_keys[i] = key;
+      bit_offset += sizeof(char)*INT_SIZE;
 
-    if(overflowed_bucket == atoi(pointer)){
-      offset += sizeof(char)*INT_SIZE*2;
-
-    }
-    else if(i <= pow(2,new_depth - 1)){
-      offset += sizeof(char)*INT_SIZE*2;
-
+      int pointer = get_int(bit_offset,INT_SIZE,dict);
+      temp_pointers[i] = pointer;
+      bit_offset += sizeof(char)*INT_SIZE;
     }
     else{
-      char* key = itos(i);
-      memcpy(dict + offset, key, strlen(key));
 
-      offset += sizeof(char)*INT_SIZE;
-      
-      /*
+        int temp_key = temp_keys[i-dict_offset] + pow(2,new_depth-1);
+        char* key = itos(temp_key);
+        char* pointer = itos(temp_pointers[i-dict_offset]);
 
-        συγκρινουμε το key με τα παλαιοτερα και ψαχνοουμε αυτο που του τεριαζει το περισσοτερο "κατα -1"
-        και παιρνουμε το pointer του
+        memcpy(dict+bit_offset,key,strlen(key));
+        bit_offset += sizeof(char)*INT_SIZE;
 
+        if(atoi(pointer) == overflowed_bucket){
+          char* new_bucket = itos(last);
+          memcpy(dict+bit_offset,new_bucket,strlen(new_bucket));
+          bit_offset += sizeof(char)*INT_SIZE;       
+        }
+        else{
+          memcpy(dict+bit_offset,pointer,strlen(pointer));
+          bit_offset += sizeof(char)*INT_SIZE;
+        }
 
-      */
-
-      free(key);
     }
-    free(pointer);
+
+
   }
 
 }
 
+//we get the bucket with hash value from the directory
 int get_bucket(char* hash_value, int depth, char* dict){
   int len = pow(2,depth);
   unsigned long offset = 0;
@@ -145,78 +189,67 @@ int get_bucket(char* hash_value, int depth, char* dict){
   return -1;
 }
 
-void print_hash_table(char* dict, int depth){
-  int len = pow(2,depth);
-  unsigned long offset = 0;
-
-  for(int i=0; i<len; i++){
-
-    int key = get_int(offset, INT_SIZE, dict);
-    char* binary_key = toBinary(key,depth);
-    printf("key: %s ",binary_key);
-
-    offset += sizeof(char)*INT_SIZE;
-    int pointer = get_int(offset, INT_SIZE, dict);
-    printf("pointer: %d\n",pointer);
-
-    offset += sizeof(char)*INT_SIZE;      
-  }
-}
 
 typedef struct info{
+  char file_name[20];
   int index;
 }Info;
+
+Info open_files[MAX_OPEN_FILES];         //οσα files ειναι ανοικτα atm
+int file_create_counter = 0;               //οσα files εχουν γινει create
+int file_open_counter = 0;                //οσα files εχουν γινει open
 
 HT_ErrorCode HT_Init() {
   //global table απο τα ανοικτα files
   return HT_OK;
 }
 
-Info HT_info;
-
-//1 block => 1 bucket
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
 
   //Δίνουμε οντότητα στην δομή
   BF_Block *block;
   BF_Block_Init(&block);
 
+  int index;
+
   //Δημιουργούμε το file
   if(BF_CreateFile(filename) != BF_OK)
     return HT_ERROR;
-  
-  if(BF_OpenFile(filename, &HT_info.index) != BF_OK)
+
+  //αποθηκευεται στον πινακά μας
+  if(BF_OpenFile(filename, &index) != BF_OK)
     return HT_ERROR;
-  
+
   //Δεσμέυουμε info block για το αρχείο
-  if(BF_AllocateBlock(HT_info.index, block) != BF_OK)
+  if(BF_AllocateBlock(index, block) != BF_OK)
     return HT_ERROR;
   
   //Δεσμέυουμε directory block για το αρχείο
-  if(BF_AllocateBlock(HT_info.index, block) != BF_OK)
+  if(BF_AllocateBlock(index, block) != BF_OK)
     return HT_ERROR;
 
+  
   //Επεξεργασία και αρχικοποιηση του dict block
-  BF_GetBlock(HT_info.index, 1, block);
+  BF_GetBlock(index, 1, block);
   char* dict = BF_Block_GetData(block);
   make_dict(depth,dict);
   print_hash_table(dict,depth);
-
+  
   //Δεσμέυουμε 4 buckets blocks για το αρχείο και τα αρχικοποιούμε (local + counter)
   for(int bucket=0; bucket< pow(2,depth); bucket++){
-    if(BF_AllocateBlock(HT_info.index, block) != BF_OK)
+    if(BF_AllocateBlock(index, block) != BF_OK)
       return HT_ERROR;
     char* block_data = BF_Block_GetData(block);
     char* local_depth = itos(depth);
-    memcpy(block_data, local_depth, sizeof(local_depth));
+    memcpy(block_data, local_depth, strlen(local_depth));
     
     //Το 0 ειναι το counter των records
-    memcpy(block_data + sizeof(char)*INT_SIZE, "0\0", strlen("0\0"));
+    memcpy(block_data + sizeof(char)*INT_SIZE, "0", strlen("0"));
     free(local_depth);
   }
 
   //Επεξεργαζομαστε το info block
-  BF_GetBlock(HT_info.index, 0, block);
+  BF_GetBlock(index, 0, block);
   char* data = BF_Block_GetData(block);
   char* depth_str = itos(depth);
 
@@ -227,31 +260,34 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   else{
     return HT_ERROR;
   }
-  memcpy(data + sizeof(char)*INT_SIZE, "This is HT struct \0", strlen("This is HT struct \0"));
+  memcpy(data + sizeof(char)*INT_SIZE, "This is HT struct", strlen("This is HT struct"));
 
   int num_blocks;
-  if(BF_GetBlockCounter(HT_info.index,&num_blocks) != BF_OK)
-    BF_PrintError(BF_GetBlockCounter(HT_info.index,&num_blocks));
+  if(BF_GetBlockCounter(index,&num_blocks) != BF_OK)
+    BF_PrintError(BF_GetBlockCounter(index,&num_blocks));
   else
     printf("Number of blocks:%d\n",num_blocks);
 
   //Τα κανουμε όλα dirty και unpin
   for(int i=0; i<num_blocks; i++){
-    BF_GetBlock(HT_info.index,i,block);
+    BF_GetBlock(index,i,block);
     BF_Block_SetDirty(block);
     BF_UnpinBlock(block);
   }
 
-  BF_CloseFile(HT_info.index);
+  BF_CloseFile(index);
+  file_create_counter++;
   return HT_OK;
 }
 
 HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
 
-  if(BF_OpenFile(fileName, &HT_info.index) != BF_OK)
+  if(BF_OpenFile(fileName, indexDesc) != BF_OK)
     return HT_ERROR;
 
-  *indexDesc = HT_info.index;
+  strcpy(open_files[file_open_counter].file_name,fileName);
+  open_files[file_open_counter].index = *indexDesc;
+  file_open_counter++;
 
   if(indexDesc != NULL)
     return HT_OK;
@@ -262,19 +298,27 @@ HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
 HT_ErrorCode HT_CloseFile(int indexDesc) {
 
   int num_blocks;
-  BF_GetBlockCounter(HT_info.index,&num_blocks);
+  BF_GetBlockCounter(indexDesc, &num_blocks);
 
   BF_Block *block;
   BF_Block_Init(&block); 
 
   for(int nblock=0; nblock < num_blocks; nblock++){
-    BF_GetBlock(HT_info.index, nblock, block);
+    BF_GetBlock(indexDesc, nblock, block);
     if(BF_UnpinBlock(block) != BF_OK)
       return HT_ERROR;
   }
 
-  if(BF_CloseFile(HT_info.index) != BF_OK)
+  for(int i=0; i<MAX_OPEN_FILES; i++){
+    if(strcpy(open_files[i].file_name,"") != 0 && open_files[i].index == indexDesc){
+      strcpy(open_files[i].file_name, "");
+    }
+  }
+  
+  if(BF_CloseFile(indexDesc) != BF_OK){
+    file_open_counter--;
     return HT_ERROR;
+  }
   return HT_OK;
 }
 
@@ -328,14 +372,13 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
   BF_GetBlock(indexDesc, pointer, block);
   char* bucket = BF_Block_GetData(block);
-  int local_depth = get_int(0,INT_SIZE,bucket);
 
 
   if(store_record(record,bucket) == 0)
     printf("record stored\n");
   else{
-
     printf("not stored\n");
+    int local_depth = get_int(0,INT_SIZE,bucket);
 
     //case 1
     if(local_depth == global_depth){
@@ -347,10 +390,16 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       char* new_local_depth = itos(local_depth + 1);
       memcpy(bucket,new_local_depth,strlen(new_local_depth));
 
-      //expand_dict(global_depth+1,dict,pointer);
+      // split()
+      expand_dict(global_depth+1,dict,pointer,get_last_bucket(indexDesc));
 
     }
   }
+  expand_dict(global_depth+1,dict,2,get_last_bucket(indexDesc));
+  print_hash_table(dict,global_depth+1);
+
+  printf("\n\n");
+
   return HT_OK;
 }
 
@@ -360,7 +409,7 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
   BF_Block_Init(&block);
 
   int num_blocks;
-  BF_GetBlockCounter(HT_info.index,&num_blocks);
+  BF_GetBlockCounter(indexDesc,&num_blocks);
   
   for(int i=0; i<num_blocks-2; i++){
     BF_GetBlock(indexDesc, i+2, block);
