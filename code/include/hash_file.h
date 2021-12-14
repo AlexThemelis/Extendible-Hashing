@@ -20,6 +20,7 @@ void print_char(int start, int len, char* string);
 #define CITY_SIZE 20
 #define RECORD_SIZE (INT_SIZE + NAME_SIZE + SURNAME_SIZE + CITY_SIZE)
 #define MAX_RECORDS 8
+#define RECORDS_NUM 256
 
 int get_int(int start, int len, char* src);
 char* get_string(int start, int len, char* src);
@@ -80,5 +81,5 @@ HT_ErrorCode HT_PrintAllEntries(
 	int *id 				/* τιμή του πεδίου κλειδιού προς αναζήτηση */
 	);
 
-
+HT_ErrorCode HashStatistics(const char *filename);
 #endif // HASH_FILE_H

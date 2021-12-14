@@ -79,7 +79,6 @@ void print_hash_table(char* dict, int depth){
 //our hash function
 char* hashFunction(int id, int depth){
   char* binary = toBinary(id, depth);
-  binary = reverse(binary);
   int new_id = (int) strtol(binary, NULL, 2);
   free(binary);
   return toBinary(new_id,depth);
@@ -128,6 +127,11 @@ void make_dict(int depth, char* data){
 //expands the directory(hash table) when we encounter an overflow
 void expand_dict(int new_depth, char* dict, int overflowed_bucket, int last){
 
+  if(pow(2,new_depth) == 64){
+    printf("Cant store more than %d records\n",RECORDS_NUM);
+    exit(1);
+  }
+
   int size = pow(2,new_depth-1);
   int temp_keys[size];
   int temp_pointers[size];
@@ -157,7 +161,8 @@ void expand_dict(int new_depth, char* dict, int overflowed_bucket, int last){
         if(atoi(pointer) == overflowed_bucket){
           char* new_bucket = itos(last);
           memcpy(dict+bit_offset,new_bucket,strlen(new_bucket));
-          bit_offset += sizeof(char)*INT_SIZE;       
+          bit_offset += sizeof(char)*INT_SIZE;
+          free(new_bucket);
         }
         else{
           memcpy(dict+bit_offset,pointer,strlen(pointer));
@@ -221,7 +226,7 @@ int store_record(Record record, char* data){
   char* count_string = itos(count);
   memcpy(data + sizeof(char)*INT_SIZE, count_string, strlen(count_string));
   free(count_string);
-
+  free(id_string);
   return 0;
 }
 
@@ -248,9 +253,9 @@ void split(int index, char* bucket, Record record, char* dict){
     bucket_offset += INT_SIZE;
 
     char* hash_value = hashFunction(id,atoi(local_depth));
-    hash_value = reverse(hash_value);
     int pointer = get_bucket(hash_value,atoi(local_depth),dict);
-
+    free(hash_value);
+    
     BF_GetBlock(index, pointer, block);
     char* check_data = BF_Block_GetData(block);
     int check = get_int(0,INT_SIZE,check_data);
@@ -276,6 +281,8 @@ void split(int index, char* bucket, Record record, char* dict){
       memcpy(check_data + new_offset,surname,strlen(surname));
       new_offset += SURNAME_SIZE;
       memcpy(check_data + new_offset,city,strlen(city));
+      free(string_counter);
+      free(string_id);
     }
     else{
       unsigned long old_offset = INT_SIZE;
@@ -291,18 +298,25 @@ void split(int index, char* bucket, Record record, char* dict){
       memcpy(bucket + old_offset,surname,strlen(surname));
       old_offset += SURNAME_SIZE;
       memcpy(bucket + old_offset,city,strlen(city));
+      free(string_counter);
+      free(string_id);
     }
+    free(name);
+    free(surname);
+    free(city);
 
     if(rec == MAX_RECORDS - 1){
       memcpy(block_data,local_depth,strlen(local_depth));
       char* new_hash = hashFunction(record.id,atoi(local_depth));
-      new_hash = reverse(new_hash);
       int new_pointer = get_bucket(new_hash,atoi(local_depth),dict);
       BF_GetBlock(index,new_pointer,block);
       char* new_data = BF_Block_GetData(block);
       store_record(record,new_data);
+      free(new_hash);
     }
   }
+  free(local_depth);
+  BF_Block_Destroy(&block);
 }
 
 void pointers_adapt(int new_depth, char* dict, int overflowed_bucket, int last){
@@ -317,6 +331,7 @@ void pointers_adapt(int new_depth, char* dict, int overflowed_bucket, int last){
       flag++;
       char* string_last = itos(last);
       memcpy(dict + bit_offset, string_last, strlen(string_last));
+      free(string_last);
     }
     else if(pointer == overflowed_bucket){
       flag--;
@@ -338,6 +353,7 @@ void dirty_unpin_all(int indexDesc){
     BF_Block_SetDirty(block);
     BF_UnpinBlock(block);
   }
+  BF_Block_Destroy(&block);
 }
 
 typedef struct info{
@@ -411,6 +427,7 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   dirty_unpin_all(index);
   BF_CloseFile(index);
   file_create_counter++;
+  BF_Block_Destroy(&block);
   return HT_OK;
 }
 
@@ -449,6 +466,7 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
     file_open_counter--;
     return HT_ERROR;
   }
+  BF_Block_Destroy(&block);
   return HT_OK;
 }
 
@@ -467,6 +485,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   BF_GetBlock(indexDesc,1,block);
   char* dir  = BF_Block_GetData(block);
   int pointer = get_bucket(hash_value,global_depth,dir);
+  free(hash_value);
 
   BF_GetBlock(indexDesc, pointer, block);
   char* bucket = BF_Block_GetData(block);
@@ -486,6 +505,9 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
       expand_dict(global_depth+1,dir,pointer,get_last_bucket(indexDesc));
       split(indexDesc,bucket,record,dir);
+
+      free(new_global_depth);
+      free(new_local_depth);
     }
     //case 2
     else{
@@ -494,14 +516,16 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
       pointers_adapt(global_depth+1,dir,pointer,get_last_bucket(indexDesc));
       split(indexDesc,bucket,record,dir);
+
+      free(new_local_depth);
     }
   }
   dirty_unpin_all(indexDesc);
+  BF_Block_Destroy(&block);
   return HT_OK;
 }
 
 HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
-  //Kανε και για συγκεκριμενο ....
   BF_Block *block;
   BF_Block_Init(&block);
 
@@ -511,7 +535,9 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
     for(int i=0; i<num_blocks-2; i++){
       BF_GetBlock(indexDesc, i+2, block);
       char* data = BF_Block_GetData(block);
+      printf("========== Block %d ============\n",i);
       print_block(data);
+      printf("\n================================\n");
     }
   }
   else{
@@ -524,7 +550,7 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
     BF_GetBlock(indexDesc,1,block);
     char* dir = BF_Block_GetData(block);
     int pointer = get_bucket(hash_value,global_depth,dir);
-
+    free(hash_value);
     BF_GetBlock(indexDesc,pointer,block);
     char* data = BF_Block_GetData(block);
 
@@ -541,12 +567,51 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
         offset += sizeof(char)*SURNAME_SIZE;
         char* city = get_string(offset,NAME_SIZE,data);
         printf("Id %d\nName: %s \nSurname: %s \nCity: %s\n",temp_id,name,surname,city);
+        free(name);
+        free(surname);
+        free(city);
       }
     }
   }
+  BF_Block_Destroy(&block);
   return HT_OK;
 }
 
-HT_ErrorCode HashStatistics(){
+HT_ErrorCode HashStatistics(const char *filename){
+  BF_Block *block;
+  BF_Block_Init(&block);
+
+  for(int i=0; i<file_open_counter; i++){
+    if(strcmp(open_files[i].file_name,filename) == 0){
+      int index = open_files[i].index;
+      int num_blocks;
+      BF_GetBlockCounter(index,&num_blocks);
+      printf("The file has %d blocks\n",num_blocks);
+
+      if(num_blocks == DICT_BLOCKS + 1){
+        printf("No buckets in the file\n");
+        return HT_ERROR;
+      }
+
+      int min = MAX_RECORDS + 1;
+      int max = -1;
+      int sum = 0;
+
+      for(int j=2; j<num_blocks; j++){
+        BF_GetBlock(index,j,block);
+        char* data = BF_Block_GetData(block);
+        unsigned long offset = 0;
+        int count = get_int(INT_SIZE,INT_SIZE,data);
+        if(count < min)
+          min = count;
+        if(count > max)
+          max = count;
+        sum += count;
+      }
+      sum = sum/(num_blocks-2);
+      printf("Min:%d\nMax:%d\nAvarage:%d\n",min,max,sum);
+    }
+  }
+  BF_Block_Destroy(&block);
   return HT_OK;
 }

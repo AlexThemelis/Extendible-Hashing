@@ -7,7 +7,7 @@
 #include "bf.h"
 #include "hash_file.h"
 
-#define RECORDS_NUM 7 // you can change it if you want
+#define RECORDS_NUM 256 // you can change it if you want
 #define GLOBAL_DEPT 1 // you can change it if you want
 #define FILE_NAME "data.db"
 
@@ -72,7 +72,7 @@ void print_block(char* data){
   offset += sizeof(char)*INT_SIZE;
   printf("counter: %.*s\n", INT_SIZE, data + offset);
   offset += sizeof(char)*INT_SIZE;
-
+  printf("--------------------------------\n");
   for(int i=0; i<count; i++){
     printf("Id: %.*s\n", INT_SIZE, data + offset);
     offset += sizeof(char)*INT_SIZE;
@@ -80,7 +80,7 @@ void print_block(char* data){
     offset += sizeof(char)*NAME_SIZE;
     printf("Surname: %.*s\n", SURNAME_SIZE, data + offset);
     offset += sizeof(char)*SURNAME_SIZE;
-    printf("City: %.*s\n\n", CITY_SIZE, data + offset);
+    printf("City: %.*s\n", CITY_SIZE, data + offset);
     offset += sizeof(char)*CITY_SIZE;
   }
 }
@@ -118,7 +118,7 @@ int main() {
   int id = rand() % RECORDS_NUM;
   CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
   CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
-
+  HashStatistics(FILE_NAME);
   CALL_OR_DIE(HT_CloseFile(indexDesc));
   BF_Close();
 }
