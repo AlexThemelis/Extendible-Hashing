@@ -11,7 +11,7 @@
 #define DIR_BEGINS 1
 #define DIR_ENDS 1
 #define DIR_MAX_LEN 32
-#define DIR_MAX_BLOCKS 32
+#define DIR_MAX_KEYS 32
 
 #define CALL_BF(call)       \
 {                           \
@@ -35,20 +35,7 @@ void print_char(int start, int len, char* string){
   printf("Print string: %.*s\n", len, string + start);
 }
 
-//reversing a string
-char* reverse(char* s){
-  int i,swap;
-  int new = strlen(s);
-
-  for(i =0; i<new/2; i++){
-    swap = s[i];
-    s[i]=s[new-1-i];
-    s[new-1-i] = swap;
-  }
-  return s;
-}
-
-//binary representation of a int must free after
+//binary representation of an int with specific lenght must free after
 char* toBinary(int number, int len)
 {
     char* binary = (char*)malloc(sizeof(char) * len);
@@ -65,12 +52,13 @@ void print_hash_table(char* dir, int depth){
   int len = pow(2,depth);
   unsigned long offset = 0;
 
-  //Δεν αφήνουμε το dir να πιάσει πάνω από DIR_MAX_BLOCKS blocks
-  if(len > DIR_MAX_BLOCKS){
+  //Δεν αφήνουμε το dir να πιάσει πάνω από DIR_MAX_KEYS
+  if(len > DIR_MAX_KEYS){
     printf("The lenght of directory is exceeded\n");
     exit(1);
   }
 
+  //Διασχίζουμε το directory και παιρνουμε τα keys και τους pointers
   for(int i=0; i< len; i++){
 
     int key = get_int(offset, INT_SIZE, dir);
@@ -118,12 +106,12 @@ int get_last_bucket(int index){
 }
 
 //makes the the original directory(hash table)
-void make_dict(int depth, char* dir){
+void make_dir(int depth, char* dir){
   unsigned long offset = 0;
   int len = pow(2,depth);
 
-  //Δεν αφήνουμε το dir να πιάσει πάνω από DIR_MAX_BLOCKS blocks
-  if(len > DIR_MAX_BLOCKS){
+  //Δεν αφήνουμε το dir να πιάσει πάνω από DIR_MAX_KEYS
+  if(len > DIR_MAX_KEYS){
     printf("The lenght of directory is exceeded\n");
     exit(1);
   }
@@ -133,7 +121,7 @@ void make_dict(int depth, char* dir){
     memcpy(dir + offset, key, strlen(key));
     offset += sizeof(char)*INT_SIZE;
 
-    char* pointer = itos(i+DIR_BLOCKS+1);
+    char* pointer = itos(i+DIR_BLOCKS+1);           //τα buckets ξεκινανε μετά από το info και directory block
     memcpy(dir + offset, pointer, strlen(pointer));
     offset += sizeof(char)*INT_SIZE;
 
@@ -146,7 +134,7 @@ void make_dict(int depth, char* dir){
 void expand_dict(int new_depth, char* dir, int overflowed_bucket, int last){
   int len = pow(2,new_depth);
 
-  if(len > DIR_MAX_BLOCKS){
+  if(len > DIR_MAX_KEYS){
     printf("The lenght of directory is exceeded\n");
     exit(1);
   }
@@ -206,7 +194,7 @@ int get_bucket(char* hash_value, int depth, char* dict){
   unsigned long offset = 0;
 
   //Διασχίζουμε όλο το dir και βρίσκουμε το κλειδι
-  //ιδιο με το hash value και επιστρέφουμε τον αριθμό του bucket
+  //που είναι ιδιο με το hash value και επιστρέφουμε τον αριθμό του bucket
   for(int i=0; i<len; i++){
 
     int key = get_int(offset, INT_SIZE, dict);
@@ -226,7 +214,7 @@ int get_bucket(char* hash_value, int depth, char* dict){
   return -1;
 }
 
-//Χωράνε 5 records σε καθε bucket
+//stores the record to the given bucket
 int store_record(Record record, char* data){
 
   //Σιγουρα γραφουμε μετα το ΙΝΤ_ΜΑΧ => local depth
@@ -237,6 +225,7 @@ int store_record(Record record, char* data){
     return -1;
   }
 
+  //περνάμε στο bucket το record χρησιμοποιώντας το offset κατάλληλα
   char* id_string = itos(record.id);
   unsigned long offset = sizeof(char)*INT_SIZE*2 + sizeof(char)*RECORD_SIZE*count;
   memcpy(data + offset, id_string, strlen(id_string));
@@ -248,7 +237,7 @@ int store_record(Record record, char* data){
   memcpy(data + offset, record.city, strlen(record.city));
 
 
-  //πρεπει να το αποθηκευσουμε
+  //πρεπει να ενημερώσουμε και να αποθηκευσουμε το count
   count++;
   char* count_string = itos(count);
   memcpy(data + sizeof(char)*INT_SIZE, count_string, strlen(count_string));
@@ -292,7 +281,7 @@ void split(int index, char* bucket, Record record, char* dir){
     
     //Και παιρνουμε το bucket στο οποιο θα αποθηκευσουμε το record
     //από το οποιο παίρνουμε το local depth
-    //αν το local depth ειναι 0 τοτε θα βαλουμε το record στο καινουργιο bucket αν οχι τοτε στο overflowed bucket
+    //Aν το local depth ειναι 0 τοτε θα βαλουμε το record στο καινουργιο bucket αν οχι τοτε στο overflowed bucket
     BF_GetBlock(index, pointer, block);
     char* check_data = BF_Block_GetData(block);
     int check_depth = get_int(0,INT_SIZE,check_data);
@@ -320,7 +309,7 @@ void split(int index, char* bucket, Record record, char* dir){
 
       new_offset += INT_SIZE + sizeof(char)*RECORD_SIZE*(counter_new-1);    //προχωραμε μπροστά όσα records εχουεμ ήδη αποθηκεύσει
 
-      //και αποθηκευου μετα τα υπολοιπα στοιχεία
+      //και αποθηκευουme μετα τα υπολοιπα στοιχεία
       memcpy(new_block_data + new_offset,string_id,strlen(string_id));
 
       new_offset += INT_SIZE;
@@ -334,7 +323,7 @@ void split(int index, char* bucket, Record record, char* dir){
 
     }
     else{
-      //αλλιως βρισκουμαστε στην περιπτωση που αποθηκευουμε το record στο ιδιο bucket(overflowed) που ηταν ηδη
+      //αλλιως βρισκομαστε στην περιπτωση που αποθηκευουμε το record στο ιδιο bucket(overflowed) που ηταν ηδη αποθηκευμένο
       //απλα σε διαφορετικη θέση
       unsigned long old_offset = INT_SIZE;
       counter_old++;
@@ -383,6 +372,7 @@ void split(int index, char* bucket, Record record, char* dir){
   BF_Block_Destroy(&block);
 }
 
+//assign appropriate pointers after split
 void pointers_adapt(int new_depth, char* dir, int overflowed_bucket, int last){
   int bit_offset = 0;
   int flag = 0;
@@ -480,8 +470,7 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   //Επεξεργασία και αρχικοποιηση του dir block
   BF_GetBlock(index, 1, block);
   char* dir = BF_Block_GetData(block);
-  make_dict(depth,dir);
-  //print_hash_table(dir,depth);
+  make_dir(depth,dir);
 
   //Δεσμέυουμε κατάλληλα buckets blocks για το αρχείο και τα αρχικοποιούμε (local + counter)
   for(int bucket=0; bucket< pow(2,depth); bucket++){
@@ -563,7 +552,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   char* info  = BF_Block_GetData(block);
   int global_depth = get_int(0,INT_SIZE,info);
 
-  //Παιρνουμε το πρώτο dir
+  //Παιρνουμε το dir
   BF_GetBlock(indexDesc,1,block);
   char* dir  = BF_Block_GetData(block);
 
@@ -593,6 +582,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       char* new_local_depth = itos(local_depth + 1);
       memcpy(bucket,new_local_depth,strlen(new_local_depth));
 
+      //και πραγματοποιείται ο διπλασιασμός του dir με τις απαραίτητες αλλαγές
       expand_dict(global_depth+1,dir,pointer,get_last_bucket(indexDesc));
       split(indexDesc,bucket,record,dir);
 
@@ -601,9 +591,11 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     }
     //case 2
     else{
+      //ενημερωση του local depth
       char* new_local_depth = itos(local_depth + 1);
       memcpy(bucket,new_local_depth,strlen(new_local_depth));
 
+      //και πραγματοποιείται η καταλληλη ενημέρωση του dir
       pointers_adapt(global_depth+1,dir,pointer,get_last_bucket(indexDesc));
       split(indexDesc,bucket,record,dir);
 
@@ -643,7 +635,7 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
     int global_depth = get_int(0,INT_SIZE,info);
     char* hash_value = hashFunction(*id,global_depth);
 
-    //παιρνουμε το πρώτο directory
+    //παιρνουμε το directory
     BF_GetBlock(indexDesc,1,block);
     char* dir = BF_Block_GetData(block);
 
@@ -656,6 +648,7 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
 
     unsigned long offset = 0;
     int count = get_int(INT_SIZE,INT_SIZE,data);    //το count είναι τα πόσα records υπάρχουν στο bucket
+    int flag = 0;
     for(int i=0; i<count; i++){
 
       offset = sizeof(char)*INT_SIZE*2 + sizeof(char)*RECORD_SIZE*i;
@@ -663,6 +656,7 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
 
       //αν βρούμε το id τοτε εκτυπώνουμε τα δεδομένα του record
       if(temp_id == *id){
+        flag = 1;
         offset += sizeof(char)*INT_SIZE;
         char* name = get_string(offset,NAME_SIZE,data);
         offset += sizeof(char)*NAME_SIZE;
@@ -675,6 +669,8 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
         free(city);
       }
     }
+    if(flag == 0)
+      printf("There is no record with id:%d\n",*id);
   }
   BF_Block_Destroy(&block);
   return HT_OK;
