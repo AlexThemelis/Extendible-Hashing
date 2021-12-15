@@ -8,7 +8,7 @@
 #include "hash_file.h"
 
 #define RECORDS_NUM 256 // you can change it if you want
-#define GLOBAL_DEPT 1 // you can change it if you want
+#define GLOBAL_DEPT 2 // you can change it if you want
 #define FILE_NAME "data.db"
 
 const char* names[] = {
@@ -68,7 +68,7 @@ void print_block(char* data){
   int count = get_int(INT_SIZE, INT_SIZE, data);
   unsigned long offset = 0;
 
-  printf("\nlocal depth: %s\n", get_string(0,INT_SIZE,data));
+  printf("local depth: %s\n", get_string(0,INT_SIZE,data));
   offset += sizeof(char)*INT_SIZE;
   printf("counter: %.*s\n", INT_SIZE, data + offset);
   offset += sizeof(char)*INT_SIZE;
