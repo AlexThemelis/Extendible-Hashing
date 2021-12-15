@@ -65,7 +65,7 @@ void print_hash_table(char* dir, int depth){
   int len = pow(2,depth);
   unsigned long offset = 0;
 
-  //Δεν αφήνουμε το dir να πιάσει πάνω από 4 blocks
+  //Δεν αφήνουμε το dir να πιάσει πάνω από DIR_MAX_BLOCKS blocks
   if(len > DIR_MAX_BLOCKS){
     printf("The lenght of directory is exceeded\n");
     exit(1);
@@ -122,7 +122,7 @@ void make_dict(int depth, char* dir){
   unsigned long offset = 0;
   int len = pow(2,depth);
 
-  //Δεν αφήνουμε το dir να πιάσει πάνω από 4 blocks
+  //Δεν αφήνουμε το dir να πιάσει πάνω από DIR_MAX_BLOCKS blocks
   if(len > DIR_MAX_BLOCKS){
     printf("The lenght of directory is exceeded\n");
     exit(1);
@@ -157,8 +157,11 @@ void expand_dict(int new_depth, char* dir, int overflowed_bucket, int last){
   int dict_offset = old_size;
   int bit_offset = 0;
 
+  //αποθηκεύουμε τα κλειδία και τους pointers του dir που
+  //υπαρχoυν ήδη και τα χρησιμοποιούμε για να φτιάξουμε το καινούργιο μέρος του dir
   for (int i=0; i< len; i++){
     if(i < old_size){
+      //εδω αποθηκευουμε το "παλιό" μερος του dir σε temp πινακες
       int key = get_int(bit_offset,INT_SIZE,dir);
       temp_keys[i] = key;
       bit_offset += sizeof(char)*INT_SIZE;
@@ -168,7 +171,7 @@ void expand_dict(int new_depth, char* dir, int overflowed_bucket, int last){
       bit_offset += sizeof(char)*INT_SIZE;
     }
     else{
-
+      //και εδω χρησιμοποιούμε αυτους τους πινακες για να φτιάξουμε το extend dir (το καινούργιο μέρος)
         int temp_key = temp_keys[i-dict_offset] + old_size;
         char* key = itos(temp_key);
         char* pointer = itos(temp_pointers[i-dict_offset]);
@@ -176,6 +179,8 @@ void expand_dict(int new_depth, char* dir, int overflowed_bucket, int last){
         memcpy(dir+bit_offset,key,strlen(key));
         bit_offset += sizeof(char)*INT_SIZE;
 
+        //αν βρουμε τον overflowed bucket ως pointer τοτε δεν τον αποθηκευουμε
+        //αλλά στη θέση του μπαίνει το bucket που δημιουργήθηκε τελευταιό
         if(atoi(pointer) == overflowed_bucket){
           char* new_bucket = itos(last);
           memcpy(dir+bit_offset,new_bucket,strlen(new_bucket));
