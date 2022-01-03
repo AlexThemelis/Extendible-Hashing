@@ -552,7 +552,7 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
   return HT_OK;
 }
 
-HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
+HT_ErrorCode HT_InsertEntry(int indexDesc, Record record, int* tupleId, UpdateRecordArray* updateArray) {
 
   BF_Block* block;
   BF_Block_Init(&block);
@@ -575,6 +575,9 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   BF_GetBlock(indexDesc, pointer, block);
   char* bucket = BF_Block_GetData(block);
 
+  int index_of_rec_in_block = get_int(INT_SIZE,INT_SIZE,bucket);
+  *tupleId = (pointer + 1)*MAX_RECORDS + index_of_rec_in_block;
+  
   //Δοκιμάζουμε να αποθηκεύσουμε το record
   //Aν δεν τα καταφέρουμε υπάρχουν 2 περιπτώσεις
   if(store_record(record,bucket) == -1){

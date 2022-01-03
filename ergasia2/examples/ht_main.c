@@ -74,6 +74,10 @@ int main() {
   srand(12569874);
   int r;
   printf("Insert Entries\n");
+
+  int tupleId;
+  UpdateRecordArray* updateArray;
+
   for (int id = 0; id < RECORDS_NUM; ++id) {
     // create a record
     record.id = id;
@@ -84,7 +88,7 @@ int main() {
     r = rand() % 10;
     memcpy(record.city, cities[r], strlen(cities[r]) + 1);
 
-    CALL_OR_DIE(HT_InsertEntry(indexDesc, record));
+    CALL_OR_DIE(HT_InsertEntry(indexDesc, record, &tupleId, updateArray));
   }
 
   printf("RUN PrintAllEntries\n");

@@ -67,16 +67,24 @@ int main() {
   BF_Init(LRU);
   
   CALL_OR_DIE(HT_Init());
-
   int indexDesc;
   CALL_OR_DIE(HT_CreateIndex(FILE_NAME, GLOBAL_DEPT));
   CALL_OR_DIE(HT_OpenIndex(FILE_NAME, &indexDesc)); 
+
+  int sindexDesc;
+  CALL_OR_DIE(SHT_Init());
+  CALL_OR_DIE(SHT_CreateSecondaryIndex(SFILE_NAME,"Surname",ATTR_NAME_SIZE,GLOBAL_DEPT,FILE_NAME));
+  CALL_OR_DIE(SHT_OpenSecondaryIndex(SFILE_NAME,&sindexDesc));
 
   Record record;
   srand(12569874);
   int r;
   printf("Insert Entries\n");
-  for (int id = 0; id < RECORDS_NUM; ++id) {
+
+  int tupleId;
+  UpdateRecordArray updateArray;
+
+  for (int id = 0; id < 1; ++id) {
     // create a record
     record.id = id;
     r = rand() % 12;
@@ -86,20 +94,22 @@ int main() {
     r = rand() % 10;
     memcpy(record.city, cities[r], strlen(cities[r]) + 1);
 
-    CALL_OR_DIE(HT_InsertEntry(indexDesc, record));
+    CALL_OR_DIE(HT_InsertEntry(indexDesc, record, &tupleId, &updateArray));
+
+    SecondaryRecord rec;
+    rec.tupleId = tupleId;
+    strcpy(rec.index_key,record.city);
+
+    CALL_OR_DIE(SHT_SecondaryInsertEntry(sindexDesc,rec));
+
   }
 
   printf("RUN PrintAllEntries\n");
   int id = rand() % RECORDS_NUM;
-  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
-  //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
-  HashStatistics(FILE_NAME);
-
-  int sindexDesc;
-  CALL_OR_DIE(SHT_Init());
-  CALL_OR_DIE(SHT_CreateSecondaryIndex(SFILE_NAME,"Surname",ATTR_NAME_SIZE,GLOBAL_DEPT,FILE_NAME));
-  CALL_OR_DIE(SHT_OpenSecondaryIndex(SFILE_NAME,&sindexDesc));
-
+  //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
+  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
+  CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc, NULL));
+  //HashStatistics(FILE_NAME);
 
   CALL_OR_DIE(SHT_CloseSecondaryIndex(sindexDesc));
   CALL_OR_DIE(HT_CloseFile(indexDesc));

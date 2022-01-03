@@ -30,8 +30,9 @@ typedef struct info{
 #define SURNAME_SIZE 20
 #define CITY_SIZE 20
 #define FILE_NAME_SIZE 20
-#define ATTR_NAME_SIZE 15
+#define ATTR_NAME_SIZE 20
 #define RECORD_SIZE (INT_SIZE + NAME_SIZE + SURNAME_SIZE + CITY_SIZE)
+#define SECONDARY_RECORD_SIZE (ATTR_NAME_SIZE + INT_SIZE)
 #define MAX_RECORDS 8
 
 #define MAX_OPEN_FILES 20
@@ -101,7 +102,9 @@ HT_ErrorCode HT_CloseFile(
  */
 HT_ErrorCode HT_InsertEntry(
 	int indexDesc,	/* θέση στον πίνακα με τα ανοιχτά αρχεία */
-	Record record		/* δομή που προσδιορίζει την εγγραφή */
+	Record record,		/* δομή που προσδιορίζει την εγγραφή */
+	int* tupleId,
+	UpdateRecordArray* updateArray
 	);
 
 /*
