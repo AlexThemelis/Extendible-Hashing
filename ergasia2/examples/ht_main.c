@@ -63,28 +63,6 @@ const char* cities[] = {
     }                         \
   }
 
-void print_block(char* data){
-  //Σιγουρα γραφουμε μετα το ΙΝΤ_ΜΑΧ => local depth
-  int count = get_int(INT_SIZE, INT_SIZE, data);
-  unsigned long offset = 0;
-
-  printf("local depth: %s\n", get_string(0,INT_SIZE,data));
-  offset += sizeof(char)*INT_SIZE;
-  printf("counter: %.*s\n", INT_SIZE, data + offset);
-  offset += sizeof(char)*INT_SIZE;
-  printf("--------------------------------\n");
-  for(int i=0; i<count; i++){
-    printf("Id: %.*s\n", INT_SIZE, data + offset);
-    offset += sizeof(char)*INT_SIZE;
-    printf("Name: %.*s\n", NAME_SIZE, data + offset);
-    offset += sizeof(char)*NAME_SIZE;
-    printf("Surname: %.*s\n", SURNAME_SIZE, data + offset);
-    offset += sizeof(char)*SURNAME_SIZE;
-    printf("City: %.*s\n", CITY_SIZE, data + offset);
-    offset += sizeof(char)*CITY_SIZE;
-  }
-}
-
 int main() {
   BF_Init(LRU);
   CALL_OR_DIE(HT_Init());

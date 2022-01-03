@@ -1,6 +1,3 @@
-#ifndef HASH_FILE_H
-#define HASH_FILE_H
-
 typedef enum HT_ErrorCode {
   HT_OK,
   HT_ERROR
@@ -13,7 +10,6 @@ typedef struct Record {
 	char city[20];
 } Record;
 
-void print_char(int start, int len, char* string);
 #define INT_SIZE 5
 #define NAME_SIZE 15
 #define SURNAME_SIZE 20
@@ -24,7 +20,7 @@ void print_char(int start, int len, char* string);
 int get_int(int start, int len, char* src);
 char* get_string(int start, int len, char* src);
 void print_block(char* data);
-
+void print_char(int start, int len, char* string);
 /*
  * Η συνάρτηση HT_Init χρησιμοποιείται για την αρχικοποίηση κάποιον δομών που μπορεί να χρειαστείτε. 
  * Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται HT_OK, ενώ σε διαφορετική περίπτωση κωδικός λάθους.
@@ -81,4 +77,3 @@ HT_ErrorCode HT_PrintAllEntries(
 	);
 
 HT_ErrorCode HashStatistics(const char *filename);
-#endif // HASH_FILE_H
