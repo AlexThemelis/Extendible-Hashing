@@ -1,7 +1,17 @@
+#pragma once
+
 typedef enum HT_ErrorCode {
   HT_OK,
   HT_ERROR
 } HT_ErrorCode;
+
+typedef struct {  //μπορειτε να αλλαξετε τη δομη συμφωνα  με τις ανάγκες σας
+	char surname[20];
+	char city[20];
+	int oldTupleId; // η παλια θέση της εγγραφής πριν την εισαγωγή της νέας
+	int newTupleId; // η νέα θέση της εγγραφής που μετακινήθηκε μετα την εισαγωγή της νέας εγγραφής 
+	
+} UpdateRecordArray;
 
 typedef struct Record {
 	int id;
@@ -10,17 +20,45 @@ typedef struct Record {
 	char city[20];
 } Record;
 
+typedef struct info{
+  char file_name[20];
+  int index;
+}Info;
+
 #define INT_SIZE 5
 #define NAME_SIZE 15
 #define SURNAME_SIZE 20
 #define CITY_SIZE 20
+#define FILE_NAME_SIZE 20
+#define ATTR_NAME_SIZE 15
 #define RECORD_SIZE (INT_SIZE + NAME_SIZE + SURNAME_SIZE + CITY_SIZE)
 #define MAX_RECORDS 8
+
+#define MAX_OPEN_FILES 20
+#define INT_SIZE 5
+#define DIR_BLOCKS 1
+#define DIR_BEGINS 1
+#define DIR_ENDS 1
+#define DIR_MAX_LEN 32
+#define DIR_MAX_KEYS 32
 
 int get_int(int start, int len, char* src);
 char* get_string(int start, int len, char* src);
 void print_block(char* data);
 void print_char(int start, int len, char* string);
+char* itos(int number);
+char* toBinary(int number, int len);
+void print_hash_table(char* dir, int depth);
+char* hashFunction(int id, int depth);
+int get_last_bucket(int index);
+void make_dir(int depth, char* dir);
+void expand_dict(int new_depth, char* dir, int overflowed_bucket, int last);
+int get_bucket(char* hash_value, int depth, char* dict);
+int store_record(Record record, char* data);
+void split(int index, char* bucket, Record record, char* dir);
+void pointers_adapt(int new_depth, char* dir, int overflowed_bucket, int last);
+void dirty_unpin_all(int indexDesc);
+
 /*
  * Η συνάρτηση HT_Init χρησιμοποιείται για την αρχικοποίηση κάποιον δομών που μπορεί να χρειαστείτε. 
  * Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται HT_OK, ενώ σε διαφορετική περίπτωση κωδικός λάθους.

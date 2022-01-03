@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-
 #include <time.h>
 #include "bf.h"
 #include "hash_file.h"
@@ -65,20 +63,17 @@ const char* cities[] = {
 
 int main() {
   BF_Init(LRU);
+  
   CALL_OR_DIE(HT_Init());
 
   int indexDesc;
   CALL_OR_DIE(HT_CreateIndex(FILE_NAME, GLOBAL_DEPT));
   CALL_OR_DIE(HT_OpenIndex(FILE_NAME, &indexDesc)); 
 
-  BF_Block* block;
-  BF_Block_Init(&block);
-
   Record record;
   srand(12569874);
   int r;
   printf("Insert Entries\n");
-
   for (int id = 0; id < RECORDS_NUM; ++id) {
     // create a record
     record.id = id;
@@ -95,7 +90,7 @@ int main() {
   printf("RUN PrintAllEntries\n");
   int id = rand() % RECORDS_NUM;
   CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
-  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
+  //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
   HashStatistics(FILE_NAME);
   CALL_OR_DIE(HT_CloseFile(indexDesc));
   BF_Close();

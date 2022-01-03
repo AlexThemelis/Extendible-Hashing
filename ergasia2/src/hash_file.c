@@ -5,13 +5,6 @@
 
 #include "bf.h"
 #include "hash_file.h"
-#define MAX_OPEN_FILES 20
-#define INT_SIZE 5
-#define DIR_BLOCKS 1
-#define DIR_BEGINS 1
-#define DIR_ENDS 1
-#define DIR_MAX_LEN 32
-#define DIR_MAX_KEYS 32
 
 #define CALL_BF(call)       \
 {                           \
@@ -437,11 +430,6 @@ void dirty_unpin_all(int indexDesc){
   }
   BF_Block_Destroy(&block);
 }
-
-typedef struct info{
-  char file_name[20];
-  int index;
-}Info;
 
 Info open_files[MAX_OPEN_FILES];      //οσα files ειναι ανοικτα atm
 int file_create_counter;              //οσα files εχουν γινει create

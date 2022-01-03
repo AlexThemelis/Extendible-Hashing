@@ -4,11 +4,12 @@
 #include <time.h>
 #include "bf.h"
 #include "hash_file.h"
+#include "sht_file.h"
 
-
-#define RECORDS_NUM 1000 // you can change it if you want
+#define RECORDS_NUM 256 // you can change it if you want
 #define GLOBAL_DEPT 2 // you can change it if you want
 #define FILE_NAME "data.db"
+#define SFILE_NAME "sdata.db"
 
 const char* names[] = {
   "Yannis",
@@ -63,5 +64,44 @@ const char* cities[] = {
   }
 
 int main() {
+  BF_Init(LRU);
+  
+  CALL_OR_DIE(HT_Init());
 
+  int indexDesc;
+  CALL_OR_DIE(HT_CreateIndex(FILE_NAME, GLOBAL_DEPT));
+  CALL_OR_DIE(HT_OpenIndex(FILE_NAME, &indexDesc)); 
+
+  Record record;
+  srand(12569874);
+  int r;
+  printf("Insert Entries\n");
+  for (int id = 0; id < RECORDS_NUM; ++id) {
+    // create a record
+    record.id = id;
+    r = rand() % 12;
+    memcpy(record.name, names[r], strlen(names[r]) + 1);
+    r = rand() % 12;
+    memcpy(record.surname, surnames[r], strlen(surnames[r]) + 1);
+    r = rand() % 10;
+    memcpy(record.city, cities[r], strlen(cities[r]) + 1);
+
+    CALL_OR_DIE(HT_InsertEntry(indexDesc, record));
+  }
+
+  printf("RUN PrintAllEntries\n");
+  int id = rand() % RECORDS_NUM;
+  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
+  //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
+  HashStatistics(FILE_NAME);
+
+  int sindexDesc;
+  CALL_OR_DIE(SHT_Init());
+  CALL_OR_DIE(SHT_CreateSecondaryIndex(SFILE_NAME,"Surname",ATTR_NAME_SIZE,GLOBAL_DEPT,FILE_NAME));
+  CALL_OR_DIE(SHT_OpenSecondaryIndex(SFILE_NAME,&sindexDesc));
+
+
+  CALL_OR_DIE(SHT_CloseSecondaryIndex(sindexDesc));
+  CALL_OR_DIE(HT_CloseFile(indexDesc));
+  BF_Close();
 }
