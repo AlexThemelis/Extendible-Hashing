@@ -73,7 +73,7 @@ int main() {
 
   int sindexDesc;
   CALL_OR_DIE(SHT_Init());
-  CALL_OR_DIE(SHT_CreateSecondaryIndex(SFILE_NAME,"Surname",ATTR_NAME_SIZE,GLOBAL_DEPT,FILE_NAME));
+  CALL_OR_DIE(SHT_CreateSecondaryIndex(SFILE_NAME,"City",ATTR_NAME_SIZE,GLOBAL_DEPT,FILE_NAME));
   CALL_OR_DIE(SHT_OpenSecondaryIndex(SFILE_NAME,&sindexDesc));
 
   Record record;
@@ -84,7 +84,7 @@ int main() {
   int tupleId;
   UpdateRecordArray updateArray;
 
-  for (int id = 0; id < 1; ++id) {
+  for (int id = 0; id < 33; ++id) {
     // create a record
     record.id = id;
     r = rand() % 12;
@@ -108,6 +108,7 @@ int main() {
   int id = rand() % RECORDS_NUM;
   //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
   CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
+  printf("\n\n\n");
   CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc, NULL));
   //HashStatistics(FILE_NAME);
 
