@@ -456,6 +456,7 @@ HT_ErrorCode HT_Init() {
   file_open_counter = 0; 
   file_create_counter = 0;
   for(int i=0; i<MAX_OPEN_FILES; i++){
+    strcpy(open_files[i].file_name,"");
     open_files[i].index = -1;
   }
   return HT_OK;

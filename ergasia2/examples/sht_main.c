@@ -11,6 +11,9 @@
 #define FILE_NAME "data.db"
 #define SFILE_NAME "sdata.db"
 
+#define SECOND_FILE_NAME "data2.db"
+#define SECOND_SFILE_NAME "sdata2.db"
+
 const char* names[] = {
   "Yannis",
   "Christofos",
@@ -63,18 +66,36 @@ const char* cities[] = {
     }                         \
   }
 
+//todo
+/* print all entries
+hash statistics
+hash function
+global variable change updates
+add block destroy
+*/
+
 int main() {
   BF_Init(LRU);
   
+  //Πρώτο πρωτεύον ευρετήριο
   CALL_OR_DIE(HT_Init());
   int indexDesc;
   CALL_OR_DIE(HT_CreateIndex(FILE_NAME, GLOBAL_DEPT));
   CALL_OR_DIE(HT_OpenIndex(FILE_NAME, &indexDesc)); 
 
+  int indexDesc2;
+  CALL_OR_DIE(HT_CreateIndex(SECOND_FILE_NAME, GLOBAL_DEPT));
+  CALL_OR_DIE(HT_OpenIndex(SECOND_FILE_NAME, &indexDesc2)); 
+
+  //Πρώτο δευτερεύον ευρετήριο
   int sindexDesc;
   CALL_OR_DIE(SHT_Init());
   CALL_OR_DIE(SHT_CreateSecondaryIndex(SFILE_NAME,"City",ATTR_NAME_SIZE,GLOBAL_DEPT,FILE_NAME));
   CALL_OR_DIE(SHT_OpenSecondaryIndex(SFILE_NAME,&sindexDesc));
+
+  int sindexDesc2;
+  CALL_OR_DIE(SHT_CreateSecondaryIndex(SECOND_SFILE_NAME,"City",ATTR_NAME_SIZE,GLOBAL_DEPT,SECOND_FILE_NAME));
+  CALL_OR_DIE(SHT_OpenSecondaryIndex(SECOND_SFILE_NAME,&sindexDesc2));
 
   Record record;
   srand(12569874);
@@ -84,7 +105,7 @@ int main() {
   int tupleId;
   UpdateRecordArray updateArray;
 
-  for (int id = 0; id < 33; ++id) {
+  for (int id = 0; id < 86; ++id) {
     // create a record
     record.id = id;
     r = rand() % 12;
@@ -94,25 +115,39 @@ int main() {
     r = rand() % 10;
     memcpy(record.city, cities[r], strlen(cities[r]) + 1);
 
-    CALL_OR_DIE(HT_InsertEntry(indexDesc, record, &tupleId, &updateArray));
-
+    if(id < 43){
+      CALL_OR_DIE(HT_InsertEntry(indexDesc, record, &tupleId, &updateArray));
+    }
+    else{
+      CALL_OR_DIE(HT_InsertEntry(indexDesc2, record, &tupleId, &updateArray));
+    }
     SecondaryRecord rec;
     rec.tupleId = tupleId;
     strcpy(rec.index_key,record.city);
 
-    CALL_OR_DIE(SHT_SecondaryInsertEntry(sindexDesc,rec));
-
+    if(id < 43){
+      CALL_OR_DIE(SHT_SecondaryInsertEntry(sindexDesc,rec));
+    }
+    else{
+      CALL_OR_DIE(SHT_SecondaryInsertEntry(sindexDesc2,rec));
+    }
   }
+
+  CALL_OR_DIE(SHT_InnerJoin(sindexDesc,sindexDesc2,NULL));
 
   printf("RUN PrintAllEntries\n");
   int id = rand() % RECORDS_NUM;
   //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
-  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
-  printf("\n\n\n");
-  CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc, NULL));
-  //HashStatistics(FILE_NAME);
+  //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
+  //CALL_OR_DIE(HT_PrintAllEntries(indexDesc2, NULL));
+  //printf("\n\n\n");
+  //CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc, NULL));
+  //CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc2, NULL));
 
+  //closing files
   CALL_OR_DIE(SHT_CloseSecondaryIndex(sindexDesc));
   CALL_OR_DIE(HT_CloseFile(indexDesc));
+  CALL_OR_DIE(HT_CloseFile(indexDesc2));
+  CALL_OR_DIE(SHT_CloseSecondaryIndex(sindexDesc2));
   BF_Close();
 }

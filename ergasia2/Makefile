@@ -20,3 +20,5 @@ clean:
 	rm -f ./build/runner data1.db \
 	rm -f data.db
 	rm -f sdata.db
+	rm -f data2.db
+	rm -f sdata2.db

@@ -243,6 +243,113 @@ extern int file_open_counter;
 extern UpdateRecordArray updates[MAX_RECORDS];
 extern int updateflag;
 
+void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key){
+
+  BF_Block* block;
+  BF_Block_Init(&block);
+
+  //Παιρνουμε το global depth απο το info block
+  BF_GetBlock(sindexDesc,0,block);
+  char* info  = BF_Block_GetData(block);
+
+  //depth | attrName | attrLenght | fileName
+  int info_offset = INT_SIZE + ATTR_NAME_SIZE + INT_SIZE;
+  char* filename1 = get_string(info_offset,FILE_NAME_SIZE,info);
+  int indexDesc1;
+  for(int index=0; index<MAX_OPEN_FILES; index++){
+    if(strcmp(open_files[index].file_name,filename1) == 0 ){
+      indexDesc1 = open_files[index].index;
+    }
+  }
+
+  int offset = INT_SIZE*2;
+  for(int inner_rec=0; inner_rec<MAX_RECORDS; inner_rec++){
+
+    char* attr_name = get_string(offset,ATTR_NAME_SIZE,sbucket);
+    offset += ATTR_NAME_SIZE;
+    int tupleid = get_int(offset,INT_SIZE,sbucket);
+    offset += INT_SIZE;
+
+    if(strcmp(attr_name,index_key) == 0){
+      //printf("attraname %s tuple id %d\n",attr_name,tupleid);
+      int pointer = tupleid/MAX_RECORDS;
+      int pos = tupleid % MAX_RECORDS;
+      BF_GetBlock(indexDesc1,pointer,block);
+      char* bucket1  = BF_Block_GetData(block);
+
+      int bucket1_offset = INT_SIZE*2 + RECORD_SIZE*pos;
+
+      int id = get_int(bucket1_offset,INT_SIZE,bucket1);
+      bucket1_offset += sizeof(char)*INT_SIZE;
+      char* name = get_string(bucket1_offset,NAME_SIZE,bucket1);
+      bucket1_offset += sizeof(char)*NAME_SIZE;
+      char* surname = get_string(bucket1_offset,SURNAME_SIZE,bucket1);
+      bucket1_offset += sizeof(char)*SURNAME_SIZE;
+      char* city = get_string(bucket1_offset,CITY_SIZE,bucket1);
+
+      printf("id %d name %s surname %s city %s\n",id,name,surname,city);
+    }
+  }
+}
+
+char* find_secondary_data(int sindexDesc, char* index_key){
+  BF_Block* block;
+  BF_Block_Init(&block);
+
+  //Παιρνουμε το global depth απο το info block
+  BF_GetBlock(sindexDesc,0,block);
+  char* info  = BF_Block_GetData(block);
+  int global_depth = get_int(0,INT_SIZE,info);
+
+  //Παιρνουμε το dir
+  BF_GetBlock(sindexDesc,1,block);
+  char* dir  = BF_Block_GetData(block);
+
+  char* hash_value = new_hash(index_key,global_depth);
+  int pointer = get_bucket(hash_value,global_depth,dir);
+  free(hash_value);
+
+  BF_GetBlock(sindexDesc, pointer, block);
+  return BF_Block_GetData(block);
+}
+
+void find_unique_keys(int sindexDesc, char array_of_keys[][ATTR_NAME_SIZE], int* unique_keys){
+    BF_Block *block;
+    BF_Block_Init(&block);
+    int num_blocks;
+    BF_GetBlockCounter(sindexDesc,&num_blocks);
+
+    for(int i=DIR_BLOCKS+1; i<num_blocks; i++){
+      BF_GetBlock(sindexDesc, i, block);
+      char* data = BF_Block_GetData(block);
+
+      int count = get_int(INT_SIZE, INT_SIZE, data);
+      unsigned long offset = sizeof(char)*INT_SIZE*2;
+
+      for(int i=0; i<count; i++){
+        char*  temp_key = get_string(offset,ATTR_NAME_SIZE,data);
+        offset += sizeof(char)*ATTR_NAME_SIZE;
+        offset += sizeof(char)*INT_SIZE;
+
+        int flag = 0;
+        for(int i=0; i<DIR_MAX_KEYS*MAX_SECONDARY_RECORDS; i++){
+          if(strcmp(array_of_keys[i],temp_key) == 0){
+            flag = 1;
+            break;
+          }
+        }
+
+        if(flag == 1){
+          flag = 0;
+        }
+        else{
+          strcpy(array_of_keys[*unique_keys],temp_key);
+          (*unique_keys)++;
+        }
+      }
+    }
+}
+
 HT_ErrorCode SHT_Init() {
   //insert code here
   return HT_OK;
@@ -484,7 +591,7 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
 }
 
 HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
-BF_Block *block;
+  BF_Block *block;
   BF_Block_Init(&block);
 
   int num_blocks;
@@ -558,6 +665,39 @@ HT_ErrorCode SHT_HashStatistics(char *filename ) {
 }
 
 HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) {
-  //insert code here
+
+  if(index_key != NULL){
+    char* sbucket1 = find_secondary_data(sindexDesc1,index_key);
+    find_in_primary_dir(sbucket1,sindexDesc1,index_key);
+
+    char* sbucket2 = find_secondary_data(sindexDesc2,index_key);
+    find_in_primary_dir(sbucket2,sindexDesc2,index_key);
+  }
+  else{
+
+    BF_Block *block;
+    BF_Block_Init(&block);
+    int num_blocks;
+    BF_GetBlockCounter(sindexDesc1,&num_blocks);
+
+    char array_of_keys[DIR_MAX_KEYS*MAX_SECONDARY_RECORDS][ATTR_NAME_SIZE];
+    for(int i=DIR_BLOCKS+1; i<num_blocks; i++){
+      strcpy(array_of_keys[i],"-");
+    }
+
+    int unique_keys = 0;
+    find_unique_keys(sindexDesc1,array_of_keys,&unique_keys);
+    find_unique_keys(sindexDesc2,array_of_keys,&unique_keys);
+
+    for(int i=0; i<unique_keys; i++){
+      char* sbucket1 = find_secondary_data(sindexDesc1,array_of_keys[i]);
+      find_in_primary_dir(sbucket1,sindexDesc1,array_of_keys[i]);
+
+      char* sbucket2 = find_secondary_data(sindexDesc2,array_of_keys[i]);
+      find_in_primary_dir(sbucket2,sindexDesc2,array_of_keys[i]);
+      printf("\n");
+    }
+  }
+
   return HT_OK;
 }
