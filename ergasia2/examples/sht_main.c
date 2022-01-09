@@ -69,10 +69,10 @@ const char* cities[] = {
 int updateflag = 0;
 
 //todo
-/*print all entries
-hash statistics
+/*
 hash function
-add block destroy
+frees
+return values
 */
 
 int main() {
@@ -116,7 +116,7 @@ int main() {
     r = rand() % 10;
     memcpy(record.city, cities[r], strlen(cities[r]) + 1);
 
-    if(id < 30){
+    if(id < 43){
       CALL_OR_DIE(HT_InsertEntry(indexDesc, record, &tupleId, updateArray));
       if(updateflag == 1){
         SHT_SecondaryUpdateEntry(sindexDesc,updateArray);
@@ -133,7 +133,7 @@ int main() {
     rec.tupleId = tupleId;
     strcpy(rec.index_key,record.city);
 
-    if(id < 30){
+    if(id < 43){
       CALL_OR_DIE(SHT_SecondaryInsertEntry(sindexDesc,rec));
     }
     else{
@@ -141,8 +141,9 @@ int main() {
     }
   }
 
-  CALL_OR_DIE(SHT_InnerJoin(sindexDesc,sindexDesc2,NULL));
-
+  //CALL_OR_DIE(SHT_InnerJoin(sindexDesc,sindexDesc2,"Athens"));
+  //CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc,"Athens"));
+  //CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc2,"Athens"));
   printf("RUN PrintAllEntries\n");
   int id = rand() % RECORDS_NUM;
   //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
@@ -151,7 +152,8 @@ int main() {
   //printf("\n\n\n");
   //CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc, NULL));
   //CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc2, NULL));
-
+  CALL_OR_DIE(SHT_HashStatistics(SFILE_NAME));
+  CALL_OR_DIE(SHT_HashStatistics(SECOND_SFILE_NAME));
   //closing files
   CALL_OR_DIE(SHT_CloseSecondaryIndex(sindexDesc));
   CALL_OR_DIE(HT_CloseFile(indexDesc));
