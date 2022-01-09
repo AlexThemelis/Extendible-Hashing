@@ -57,7 +57,7 @@ void make_dir(int depth, char* dir);
 void expand_dict(int new_depth, char* dir, int overflowed_bucket, int last);
 int get_bucket(char* hash_value, int depth, char* dict);
 int store_record(Record record, char* data);
-void split(int index, int old_pointer, char* bucket, Record record, char* dir);
+void split(int index, int old_pointer, char* bucket, Record record, char* dir, int* tuple_id,UpdateRecordArray updateArray[MAX_RECORDS]);
 void pointers_adapt(int new_depth, char* dir, int overflowed_bucket, int last);
 void dirty_unpin_all(int indexDesc);
 

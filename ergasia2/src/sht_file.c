@@ -240,7 +240,6 @@ void secondary_expand_dict(int new_depth, char* dir, int overflowed_bucket, int 
 extern Info open_files[MAX_OPEN_FILES];
 extern int file_create_counter;
 extern int file_open_counter;
-extern UpdateRecordArray updates[MAX_RECORDS];
 extern int updateflag;
 
 void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key){
@@ -271,7 +270,6 @@ void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key){
     offset += INT_SIZE;
 
     if(strcmp(attr_name,index_key) == 0){
-      //printf("attraname %s tuple id %d\n",attr_name,tupleid);
       int pointer = tupleid/MAX_RECORDS;
       int pos = tupleid % MAX_RECORDS;
       BF_GetBlock(indexDesc1,pointer,block);
@@ -473,9 +471,6 @@ HT_ErrorCode SHT_CloseSecondaryIndex(int indexDesc) {
 
 HT_ErrorCode SHT_SecondaryInsertEntry (int indexDesc,SecondaryRecord record  ) {
 
-  if(updateflag == 1)
-    SHT_SecondaryUpdateEntry(indexDesc,updates);
-  
   BF_Block* block;
   BF_Block_Init(&block);
 
@@ -574,7 +569,7 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
     char* bucket = BF_Block_GetData(block);
 
     int offset = INT_SIZE*2;
-    for(int inner_rec=0; inner_rec<MAX_RECORDS; inner_rec++){
+    for(int inner_rec=0; inner_rec<MAX_SECONDARY_RECORDS; inner_rec++){
       offset += ATTR_NAME_SIZE;
       int tupleid = get_int(offset,INT_SIZE,bucket);
 

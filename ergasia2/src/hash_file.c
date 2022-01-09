@@ -261,11 +261,10 @@ int store_record(Record record, char* data){
   return 0;
 }
 
-UpdateRecordArray updates[MAX_RECORDS];
-int updateflag = 0;
+extern int updateflag;
 
 //we split the overflowed bucket
-void split(int index, int old_pointer, char* bucket, Record record, char* dir){
+void split(int index, int old_pointer, char* bucket, Record record, char* dir, int* tuple_id,UpdateRecordArray updateArray[MAX_RECORDS]){
   BF_Block *block;
   BF_Block_Init(&block);
   BF_AllocateBlock(index, block);
@@ -320,10 +319,10 @@ void split(int index, int old_pointer, char* bucket, Record record, char* dir){
 
     if(check_depth == 0){
 
-      strcpy(updates[rec].city,city);
-      updates[rec].oldTupleId = old_pointer*MAX_RECORDS + rec;
-      updates[rec].newTupleId = pointer*MAX_RECORDS + counter_new;
-      strcpy(updates[rec].surname,surname);
+      strcpy(updateArray[rec].city,city);
+      updateArray[rec].oldTupleId = old_pointer*MAX_RECORDS + rec;
+      updateArray[rec].newTupleId = pointer*MAX_RECORDS + counter_new;
+      strcpy(updateArray[rec].surname,surname);
 
       unsigned long new_offset = INT_SIZE;
       counter_new++;
@@ -350,10 +349,10 @@ void split(int index, int old_pointer, char* bucket, Record record, char* dir){
     }
     else{
   
-      strcpy(updates[rec].city,city);
-      updates[rec].oldTupleId = old_pointer*MAX_RECORDS + rec;
-      updates[rec].newTupleId = pointer*MAX_RECORDS + counter_old;
-      strcpy(updates[rec].surname,surname);
+      strcpy(updateArray[rec].city,city);
+      updateArray[rec].oldTupleId = old_pointer*MAX_RECORDS + rec;
+      updateArray[rec].newTupleId = pointer*MAX_RECORDS + counter_old;
+      strcpy(updateArray[rec].surname,surname);
 
       //αλλιως βρισκομαστε στην περιπτωση που αποθηκευουμε το record στο ιδιο bucket(overflowed) που ηταν ηδη αποθηκευμένο
       //απλα σε διαφορετικη θέση
@@ -387,7 +386,6 @@ void split(int index, int old_pointer, char* bucket, Record record, char* dir){
     //και αποθεκευουμε το καινουργιο record
     //επισης ενημερώνουμε και το local depth του καινουργιου bucket
     if(rec == MAX_RECORDS - 1){
-      memcpy(new_block_data,local_depth,strlen(local_depth));
 
       char* new_hash_value = hashFunction(record.id,atoi(local_depth));
       int new_pointer = get_bucket(new_hash_value,atoi(local_depth),dir);
@@ -395,8 +393,18 @@ void split(int index, int old_pointer, char* bucket, Record record, char* dir){
       //υπαρχουν θεσεις και στα 2 buckets οποτε απλα καλουμε την store_record()
       BF_GetBlock(index,new_pointer,block);
       char* new_bucket = BF_Block_GetData(block);
+
+      if(get_int(0,INT_SIZE,new_bucket) == 0){
+        *tuple_id = new_pointer*MAX_RECORDS + counter_new;
+      }
+      else{
+        *tuple_id = new_pointer*MAX_RECORDS + counter_old;
+      }
+
       store_record(record,new_bucket);
       free(new_hash_value);
+
+      memcpy(new_block_data,local_depth,strlen(local_depth));
     }
   }
   free(local_depth);
@@ -615,7 +623,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record, int* tupleId, UpdateRe
 
       //και πραγματοποιείται ο διπλασιασμός του dir με τις απαραίτητες αλλαγές
       expand_dict(global_depth+1,dir,pointer,get_last_bucket(indexDesc));
-      split(indexDesc,pointer,bucket,record,dir);
+      split(indexDesc,pointer,bucket,record,dir,tupleId,updateArray);
 
       free(new_global_depth);
       free(new_local_depth);
@@ -628,7 +636,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record, int* tupleId, UpdateRe
 
       //και πραγματοποιείται η καταλληλη ενημέρωση του dir
       pointers_adapt(global_depth+1,dir,pointer,get_last_bucket(indexDesc));
-      split(indexDesc,pointer,bucket,record,dir);
+      split(indexDesc,pointer,bucket,record,dir,tupleId,updateArray);
 
       free(new_local_depth);
     }

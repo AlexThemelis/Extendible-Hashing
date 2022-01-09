@@ -66,11 +66,12 @@ const char* cities[] = {
     }                         \
   }
 
+int updateflag = 0;
+
 //todo
-/* print all entries
+/*print all entries
 hash statistics
 hash function
-global variable change updates
 add block destroy
 */
 
@@ -103,7 +104,7 @@ int main() {
   printf("Insert Entries\n");
 
   int tupleId;
-  UpdateRecordArray updateArray;
+  UpdateRecordArray updateArray[MAX_RECORDS];
 
   for (int id = 0; id < 86; ++id) {
     // create a record
@@ -115,17 +116,24 @@ int main() {
     r = rand() % 10;
     memcpy(record.city, cities[r], strlen(cities[r]) + 1);
 
-    if(id < 43){
-      CALL_OR_DIE(HT_InsertEntry(indexDesc, record, &tupleId, &updateArray));
+    if(id < 30){
+      CALL_OR_DIE(HT_InsertEntry(indexDesc, record, &tupleId, updateArray));
+      if(updateflag == 1){
+        SHT_SecondaryUpdateEntry(sindexDesc,updateArray);
+      }
     }
     else{
-      CALL_OR_DIE(HT_InsertEntry(indexDesc2, record, &tupleId, &updateArray));
+      CALL_OR_DIE(HT_InsertEntry(indexDesc2, record, &tupleId, updateArray));
+      if(updateflag == 1){
+        SHT_SecondaryUpdateEntry(sindexDesc2,updateArray);
+      }
     }
+
     SecondaryRecord rec;
     rec.tupleId = tupleId;
     strcpy(rec.index_key,record.city);
 
-    if(id < 43){
+    if(id < 30){
       CALL_OR_DIE(SHT_SecondaryInsertEntry(sindexDesc,rec));
     }
     else{
