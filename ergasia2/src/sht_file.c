@@ -382,6 +382,9 @@ void find_unique_keys(int sindexDesc, char array_of_keys[][ATTR_NAME_SIZE], int*
             flag = 1;
             break;
           }
+          if(strcmp(array_of_keys[i],"-") == 0){
+            break;
+          }
         }
 
         if(flag == 1){
@@ -813,28 +816,23 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
   }
   else{
 
-    // BF_Block *block;
-    // BF_Block_Init(&block);
-    // int num_blocks;
-    // BF_GetBlockCounter(sindexDesc1,&num_blocks);
+    BF_Block *block;
+    BF_Block_Init(&block);
+    int num_blocks;
+    BF_GetBlockCounter(sindexDesc1,&num_blocks);
 
-    // char array_of_keys[DIR_MAX_KEYS*MAX_SECONDARY_RECORDS][ATTR_NAME_SIZE];
-    // for(int i=DIR_BLOCKS+1; i<num_blocks; i++){
-    //   strcpy(array_of_keys[i],"-");
-    // }
+    char array_of_keys[DIR_MAX_KEYS*MAX_SECONDARY_RECORDS][ATTR_NAME_SIZE];
+    for(int i=DIR_BLOCKS+1; i<num_blocks; i++){
+      strcpy(array_of_keys[i],"-");
+    }
 
-    // int unique_keys = 0;
-    // find_unique_keys(sindexDesc1,array_of_keys,&unique_keys);
-    // find_unique_keys(sindexDesc2,array_of_keys,&unique_keys);
+    int unique_keys = 0;
+    find_unique_keys(sindexDesc1,array_of_keys,&unique_keys);
+    find_unique_keys(sindexDesc2,array_of_keys,&unique_keys);
 
-    // for(int i=0; i<unique_keys; i++){
-    //   char* sbucket1 = find_secondary_data(sindexDesc1,array_of_keys[i]);
-    //   find_in_primary_dir(sbucket1,sindexDesc1,array_of_keys[i]);
-
-    //   char* sbucket2 = find_secondary_data(sindexDesc2,array_of_keys[i]);
-    //   find_in_primary_dir(sbucket2,sindexDesc2,array_of_keys[i]);
-    //   printf("\n");
-    // }
+    for(int i=0; i<unique_keys; i++){
+      SHT_InnerJoin(sindexDesc1,sindexDesc2,array_of_keys[i]);
+    }
   }
 
   return HT_OK;

@@ -115,17 +115,17 @@ int main() {
   int tupleId;
   UpdateRecordArray updateArray[MAX_RECORDS];
 
-  for (int id = 0; id < 86; ++id) {
+  for (int id = 0; id < 256; ++id) {
     // create a record
     record.id = id;
     r = rand() % 12;
     memcpy(record.name, names[r], strlen(names[r]) + 1);
     r = rand() % 12;
     memcpy(record.surname, surnames[r], strlen(surnames[r]) + 1);
-    r = rand() % 10;
+    r = rand() % 21;
     memcpy(record.city, cities[r], strlen(cities[r]) + 1);
 
-    if(id < 43){
+    if(id < 140){
       CALL_OR_DIE(HT_InsertEntry(indexDesc, record, &tupleId, updateArray));
       if(updateflag == 1){
         SHT_SecondaryUpdateEntry(sindexDesc,updateArray);
@@ -142,7 +142,7 @@ int main() {
     rec.tupleId = tupleId;
     strcpy(rec.index_key,record.city);
 
-    if(id < 43){
+    if(id < 140){
       CALL_OR_DIE(SHT_SecondaryInsertEntry(sindexDesc,rec));
     }
     else{
@@ -150,8 +150,11 @@ int main() {
     }
   }
 
-  printf("Inner join for London\n");
-  CALL_OR_DIE(SHT_InnerJoin(sindexDesc,sindexDesc2,"London"));
+  //printf("Inner join with Null\n");
+  //CALL_OR_DIE(SHT_InnerJoin(sindexDesc,sindexDesc2, NULL));
+
+  printf("Inner join with London\n");
+  CALL_OR_DIE(SHT_InnerJoin(sindexDesc,sindexDesc2, "London"));
 
   printf("All entries for London\n");
   CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc,"London"));
