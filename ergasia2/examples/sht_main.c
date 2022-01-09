@@ -54,7 +54,19 @@ const char* cities[] = {
   "Tokyo",
   "Hong Kong",
   "Munich",
-  "Miami"
+  "Miami",
+  "Stockholm",
+  "Paris",
+  "Trikala",
+  "Pikermi",
+  "Madrid",
+  "Seoul",
+  "Lisbon",
+  "Istanbul",
+  "Smyrna",
+  "Alexandria",
+  "Volos"
+
 };
 
 #define CALL_OR_DIE(call)     \
@@ -68,11 +80,9 @@ const char* cities[] = {
 
 int updateflag = 0;
 
-//todo
 /*
-hash function
 frees
-return values
+inner join null
 */
 
 int main() {
@@ -101,7 +111,6 @@ int main() {
   Record record;
   srand(12569874);
   int r;
-  printf("Insert Entries\n");
 
   int tupleId;
   UpdateRecordArray updateArray[MAX_RECORDS];
@@ -141,19 +150,17 @@ int main() {
     }
   }
 
-  //CALL_OR_DIE(SHT_InnerJoin(sindexDesc,sindexDesc2,"Athens"));
-  //CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc,"Athens"));
-  //CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc2,"Athens"));
-  printf("RUN PrintAllEntries\n");
-  int id = rand() % RECORDS_NUM;
-  //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
-  //CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
-  //CALL_OR_DIE(HT_PrintAllEntries(indexDesc2, NULL));
-  //printf("\n\n\n");
-  //CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc, NULL));
-  //CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc2, NULL));
+  printf("Inner join for London\n");
+  CALL_OR_DIE(SHT_InnerJoin(sindexDesc,sindexDesc2,"London"));
+
+  printf("All entries for London\n");
+  CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc,"London"));
+  CALL_OR_DIE(SHT_PrintAllEntries(sindexDesc2,"London"));
+
+  printf("Hash Statistics for both secondary directories\n");
   CALL_OR_DIE(SHT_HashStatistics(SFILE_NAME));
   CALL_OR_DIE(SHT_HashStatistics(SECOND_SFILE_NAME));
+
   //closing files
   CALL_OR_DIE(SHT_CloseSecondaryIndex(sindexDesc));
   CALL_OR_DIE(HT_CloseFile(indexDesc));

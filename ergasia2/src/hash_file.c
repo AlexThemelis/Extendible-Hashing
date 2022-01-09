@@ -20,7 +20,9 @@ void print_block(char* data){
   int count = get_int(INT_SIZE, INT_SIZE, data);
   unsigned long offset = 0;
 
-  printf("local depth: %s\n", get_string(0,INT_SIZE,data));
+  char* local_depth = get_string(0,INT_SIZE,data);
+  printf("local depth: %s\n", local_depth);
+  free(local_depth);
   offset += sizeof(char)*INT_SIZE;
   printf("counter: %.*s\n", INT_SIZE, data + offset);
   offset += sizeof(char)*INT_SIZE;

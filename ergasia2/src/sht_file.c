@@ -20,7 +20,9 @@ void print_secondary_block(char* data){
   int count = get_int(INT_SIZE, INT_SIZE, data);
   unsigned long offset = 0;
 
-  printf("local depth: %s\n", get_string(0,INT_SIZE,data));
+  char* local_depth = get_string(0,INT_SIZE,data);
+  printf("local depth: %s\n", local_depth);
+  free(local_depth);
   offset += sizeof(char)*INT_SIZE;
   printf("counter: %.*s\n", INT_SIZE, data + offset);
   offset += sizeof(char)*INT_SIZE;
@@ -176,7 +178,10 @@ void secondary_split(int index, char* bucket, SecondaryRecord record, char* dir)
       //υπαρχουν θεσεις και στα 2 buckets οποτε απλα καλουμε την store_record()
       BF_GetBlock(index,new_pointer,block);
       char* new_bucket = BF_Block_GetData(block);
-      store_secondary_record(record,new_bucket);
+      if(store_secondary_record(record,new_bucket) == -1){
+        printf("Infinity splits will happen\n");
+        exit(1);
+      }
 
       free(new_hash_value);
     }
@@ -185,7 +190,7 @@ void secondary_split(int index, char* bucket, SecondaryRecord record, char* dir)
   BF_Block_Destroy(&block);
 }
 
-HT_ErrorCode print_secondary_dir(int sindexDesc, char* index_key){
+HT_ErrorCode print_secondary_dir(int sindexDesc){
   BF_Block *block;
   BF_Block_Init(&block);
 
@@ -193,17 +198,16 @@ HT_ErrorCode print_secondary_dir(int sindexDesc, char* index_key){
   BF_GetBlockCounter(sindexDesc,&num_blocks);
 
   //αμα δεν υπάρχει id τοτε εκτυπώνουμε όλες τις εγραφές των buckets
-  if(index_key == NULL){
-    //Για κάθε bucket εκτυπώνουμε τα περιεχόμενά του
-    for(int i=DIR_BLOCKS+1; i<num_blocks; i++){
-      BF_GetBlock(sindexDesc, i, block);
-      char* data = BF_Block_GetData(block);
+  //Για κάθε bucket εκτυπώνουμε τα περιεχόμενά του
+  for(int i=DIR_BLOCKS+1; i<num_blocks; i++){
+    BF_GetBlock(sindexDesc, i, block);
+    char* data = BF_Block_GetData(block);
 
-      printf("========== Secondary Bucket %d ===========\n",i-(DIR_BLOCKS+1));
-      print_secondary_block(data);
-      printf("================================\n\n");
-    }
+    printf("========== Secondary Bucket %d ===========\n",i-(DIR_BLOCKS+1));
+    print_secondary_block(data);
+    printf("================================\n\n");
   }
+
   BF_Block_Destroy(&block);
   return HT_OK;  
 }
@@ -212,6 +216,11 @@ HT_ErrorCode print_secondary_dir(int sindexDesc, char* index_key){
 void secondary_expand_dict(int new_depth, char* dir, int overflowed_bucket, int last){
   int len = pow(2,new_depth);
 
+  if(len > DIR_MAX_KEYS){
+    printf("The lenght of directory is exceeded\n");
+    exit(1);
+  }
+  
   int old_size = pow(2,new_depth-1);
   int temp_keys[old_size];
   int temp_pointers[old_size];
@@ -283,6 +292,7 @@ void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key, Record 
       indexDesc1 = open_files[index].index;
     }
   }
+  free(filename1);
 
   int offset = INT_SIZE*2;
   int counter = 0;
@@ -315,7 +325,12 @@ void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key, Record 
       strcpy(primaryRecs[counter].name,name);
       strcpy(primaryRecs[counter].surname,surname);
 
+      counter++;
+      free(name);
+      free(surname);
+      free(city);
     }
+    free(attr_name);
   }
   BF_Block_Destroy(&block);
 }
@@ -376,6 +391,7 @@ void find_unique_keys(int sindexDesc, char array_of_keys[][ATTR_NAME_SIZE], int*
           strcpy(array_of_keys[*unique_keys],temp_key);
           (*unique_keys)++;
         }
+        free(temp_key);
       }
     }
     BF_Block_Destroy(&block);
@@ -421,6 +437,7 @@ HT_ErrorCode SHT_CreateSecondaryIndex(const char *sfileName, char *attrName, int
   memcpy(info, depth_str, strlen(depth_str));
   offset += sizeof(char)*INT_SIZE;
   free(depth_str);
+
   memcpy(info + offset, attrName, strlen(attrName));
   offset += sizeof(char)*ATTR_NAME_SIZE;
   char* attr_length_string = itos(attrLength);
@@ -430,7 +447,9 @@ HT_ErrorCode SHT_CreateSecondaryIndex(const char *sfileName, char *attrName, int
   memcpy(info + offset, fileName, strlen(fileName));
 
   //Επεξεργασία και αρχικοποιηση του dir block
-  BF_GetBlock(index, 1, block);
+  if(BF_GetBlock(index, 1, block) != BF_OK)
+    return HT_ERROR;
+  
   char* dir = BF_Block_GetData(block);
   make_dir(depth,dir);
 
@@ -452,7 +471,9 @@ HT_ErrorCode SHT_CreateSecondaryIndex(const char *sfileName, char *attrName, int
   }
 
   dirty_unpin_all(index);
-  BF_CloseFile(index);
+  if(BF_CloseFile(index) != BF_OK)
+    return HT_ERROR;
+  
   file_create_counter++;
   BF_Block_Destroy(&block);
   return HT_OK;
@@ -474,14 +495,17 @@ HT_ErrorCode SHT_OpenSecondaryIndex(const char *sfileName, int *indexDesc  ) {
 HT_ErrorCode SHT_CloseSecondaryIndex(int indexDesc) {
 
   int num_blocks;
-  BF_GetBlockCounter(indexDesc, &num_blocks);
+  if(BF_GetBlockCounter(indexDesc, &num_blocks) != BF_OK)
+    return HT_ERROR;
 
   BF_Block *block;
   BF_Block_Init(&block); 
 
   //κανουμε unpin όλα τα blocks
   for(int nblock=0; nblock < num_blocks; nblock++){
-    BF_GetBlock(indexDesc, nblock, block);
+    if(BF_GetBlock(indexDesc, nblock, block) != BF_OK)
+      return HT_ERROR;
+    
     if(BF_UnpinBlock(block) != BF_OK)
       return HT_ERROR;
   }
@@ -510,12 +534,16 @@ HT_ErrorCode SHT_SecondaryInsertEntry (int indexDesc,SecondaryRecord record  ) {
   BF_Block_Init(&block);
 
   //Παιρνουμε το global depth απο το info block
-  BF_GetBlock(indexDesc,0,block);
+  if(BF_GetBlock(indexDesc,0,block) != BF_OK)
+    return HT_ERROR;
+  
   char* info  = BF_Block_GetData(block);
   int global_depth = get_int(0,INT_SIZE,info);
 
   //Παιρνουμε το dir
-  BF_GetBlock(indexDesc,1,block);
+  if(BF_GetBlock(indexDesc,1,block) != BF_OK)
+    return HT_ERROR;
+  
   char* dir  = BF_Block_GetData(block);
 
   //Και παιρνουμε το bucket στο οποιο θα πρέπει να μπει το record
@@ -524,7 +552,9 @@ HT_ErrorCode SHT_SecondaryInsertEntry (int indexDesc,SecondaryRecord record  ) {
   int pointer = get_bucket(hash_value,global_depth,dir);
   free(hash_value);
 
-  BF_GetBlock(indexDesc, pointer, block);
+  if(BF_GetBlock(indexDesc, pointer, block) != BF_OK)
+    return HT_ERROR;
+  
   char* bucket = BF_Block_GetData(block);
 
   //Δοκιμάζουμε να αποθηκεύσουμε το record
@@ -578,13 +608,17 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
   BF_Block_Init(&block);
 
   //Παιρνουμε το global depth απο το info block
-  BF_GetBlock(indexDesc,0,block);
+  if(BF_GetBlock(indexDesc,0,block) != BF_OK)
+    return HT_ERROR;
+  
   char* info  = BF_Block_GetData(block);
   int global_depth = get_int(0,INT_SIZE,info);
   char* attr_name = get_string(INT_SIZE,ATTR_NAME_SIZE,info);
 
   //Παιρνουμε το dir
-  BF_GetBlock(indexDesc,1,block);
+  if(BF_GetBlock(indexDesc,1,block) != BF_OK)
+    return HT_ERROR;
+  
   char* dir  = BF_Block_GetData(block);
 
   for(int rec=0; rec <MAX_RECORDS; rec++){
@@ -600,7 +634,9 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
     int pointer = get_bucket(hash_value,global_depth,dir);
     free(hash_value);
 
-    BF_GetBlock(indexDesc, pointer, block);
+    if(BF_GetBlock(indexDesc, pointer, block) != BF_OK)
+      return HT_ERROR;
+    
     char* bucket = BF_Block_GetData(block);
 
     int offset = INT_SIZE*2;
@@ -617,6 +653,7 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
       offset += INT_SIZE;
     }
   }
+  free(attr_name);
   dirty_unpin_all(indexDesc);
   BF_Block_Destroy(&block);
   return HT_OK;
@@ -627,7 +664,9 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
   BF_Block_Init(&block);
 
   //Παιρνουμε το global depth απο το info block
-  BF_GetBlock(sindexDesc,0,block);
+  if(BF_GetBlock(sindexDesc,0,block) != BF_OK)
+    return HT_ERROR;
+  
   char* info  = BF_Block_GetData(block);
 
   //depth | attrName | attrLenght | fileName
@@ -639,6 +678,7 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
       indexDesc1 = open_files[index].index;
     }
   }
+  free(filename1);
 
   char* sbucket = find_secondary_data(sindexDesc,index_key);
   int offset = INT_SIZE*2;
@@ -654,7 +694,9 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
     if(strcmp(attr_name,index_key) == 0){
       int pointer = tupleid/MAX_RECORDS;
       int pos = tupleid % MAX_RECORDS;
-      BF_GetBlock(indexDesc1,pointer,block);
+      if(BF_GetBlock(indexDesc1,pointer,block) != BF_OK)
+        return HT_ERROR;
+      
       char* bucket1  = BF_Block_GetData(block);
 
       int bucket1_offset = INT_SIZE*2 + RECORD_SIZE*pos;
@@ -668,7 +710,11 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
       char* city = get_string(bucket1_offset,CITY_SIZE,bucket1);
 
       printf("id:%d\nname:%s\nsurname:%s\ncity:%s\n\n",id,name,surname,city);
+      free(name);
+      free(surname);
+      free(city);
     }
+    free(attr_name);
   }
 
   BF_Block_Destroy(&block);
@@ -684,7 +730,9 @@ HT_ErrorCode SHT_HashStatistics(char *filename ) {
     if(strcmp(open_files[i].file_name,filename) == 0){
       int index = open_files[i].index;
       int num_blocks;
-      BF_GetBlockCounter(index,&num_blocks);
+      if(BF_GetBlockCounter(index,&num_blocks) != BF_OK)
+        return HT_ERROR;
+      
       printf("The file has %d blocks\n",num_blocks);
 
       if(num_blocks == DIR_BLOCKS + 1){
@@ -697,7 +745,9 @@ HT_ErrorCode SHT_HashStatistics(char *filename ) {
       int sum = 0;
 
       for(int j=DIR_BLOCKS+1; j<num_blocks; j++){
-        BF_GetBlock(index,j,block);
+        if(BF_GetBlock(index,j,block) != BF_OK)
+          return HT_ERROR;
+        
         char* data = BF_Block_GetData(block);
         int count = get_int(INT_SIZE,INT_SIZE,data);
         if(count < min)
@@ -728,7 +778,9 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
     BF_Block *block;
     BF_Block_Init(&block);
 
-    BF_GetBlock(sindexDesc1,0,block);
+    if(BF_GetBlock(sindexDesc1,0,block) !=BF_OK)
+      return HT_ERROR;
+    
     char* info = BF_Block_GetData(block);
 
     char* attrname = get_string(INT_SIZE,ATTR_NAME_SIZE,info);
@@ -756,6 +808,7 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
       }
       printf("\n\n");
     }
+    free(attrname);
     BF_Block_Destroy(&block);
   }
   else{
