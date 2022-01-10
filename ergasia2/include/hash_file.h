@@ -44,6 +44,8 @@ typedef struct info{
 #define DIR_MAX_LEN 32
 #define DIR_MAX_KEYS 32
 
+//Δηλώσεις βοηθητικών συναρτήσεων
+
 int get_int(int start, int len, char* src);
 char* get_string(int start, int len, char* src);
 void print_block(char* data);

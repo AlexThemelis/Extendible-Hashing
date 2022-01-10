@@ -15,6 +15,7 @@
   }                         \
 }
 
+//prints the data of a secondary block
 void print_secondary_block(char* data){
   //Σιγουρα γραφουμε μετα το ΙΝΤ_ΜΑΧ => local depth
   int count = get_int(INT_SIZE, INT_SIZE, data);
@@ -35,6 +36,7 @@ void print_secondary_block(char* data){
   }
 }
 
+//hashing strings
 char* new_hash(char *str, int len)
 {
     unsigned long hash = 5381;
@@ -46,6 +48,7 @@ char* new_hash(char *str, int len)
     return toBinary(hash,len);
 }
 
+//stores the secondary record to the given bucket
 int store_secondary_record(SecondaryRecord secondary_record, char* data){
   //Σιγουρα γραφουμε μετα το ΙΝΤ_ΜΑΧ => local depth
   int count = get_int(INT_SIZE, INT_SIZE, data);
@@ -73,6 +76,7 @@ int store_secondary_record(SecondaryRecord secondary_record, char* data){
   return 0;
 }
 
+//splits the overflowed bucket
 void secondary_split(int index, char* bucket, SecondaryRecord record, char* dir){
   BF_Block *block;
   BF_Block_Init(&block);
@@ -143,8 +147,6 @@ void secondary_split(int index, char* bucket, SecondaryRecord record, char* dir)
     else{
       //αλλιως βρισκομαστε στην περιπτωση που αποθηκευουμε το record στο ιδιο bucket(overflowed) που ηταν ηδη αποθηκευμένο
       //απλα σε διαφορετικη θέση
-      
-      /* DEN ELEGXOUME THN PERIPTWSH MHN GINEI HASH STO PALIO BLOCK KA8OLOU */
 
       unsigned long old_offset = INT_SIZE;
       counter_old++;
@@ -175,9 +177,11 @@ void secondary_split(int index, char* bucket, SecondaryRecord record, char* dir)
       char* new_hash_value = new_hash(record.index_key,atoi(local_depth));
       int new_pointer = get_bucket(new_hash_value,atoi(local_depth),dir);
 
-      //υπαρχουν θεσεις και στα 2 buckets οποτε απλα καλουμε την store_record()
       BF_GetBlock(index,new_pointer,block);
       char* new_bucket = BF_Block_GetData(block);
+
+      //ελέγχουμε και την περίπτωση όλα τα hash να γίνονται στο ένα από τα δύο buckets
+      //με αποτέλεσμα να μην μπορεί να αποθηκευτεί το καινούργιο record
       if(store_secondary_record(record,new_bucket) == -1){
         printf("Infinity splits will happen\n");
         exit(1);
@@ -190,6 +194,8 @@ void secondary_split(int index, char* bucket, SecondaryRecord record, char* dir)
   BF_Block_Destroy(&block);
 }
 
+//helper function for debugging
+//prints all the data of the secondary directory
 HT_ErrorCode print_secondary_dir(int sindexDesc){
   BF_Block *block;
   BF_Block_Init(&block);
@@ -197,8 +203,6 @@ HT_ErrorCode print_secondary_dir(int sindexDesc){
   int num_blocks;
   BF_GetBlockCounter(sindexDesc,&num_blocks);
 
-  //αμα δεν υπάρχει id τοτε εκτυπώνουμε όλες τις εγραφές των buckets
-  //Για κάθε bucket εκτυπώνουμε τα περιεχόμενά του
   for(int i=DIR_BLOCKS+1; i<num_blocks; i++){
     BF_GetBlock(sindexDesc, i, block);
     char* data = BF_Block_GetData(block);
@@ -227,7 +231,7 @@ void secondary_expand_dict(int new_depth, char* dir, int overflowed_bucket, int 
   int dict_offset = old_size;
   int bit_offset = 0;
 
-  //αποθηκεύουμε τα κλειδία και τους pointers του dir που
+  //αποθηκεύουμε τα κλειδιά και τους pointers του dir που
   //υπαρχoυν ήδη και τα χρησιμοποιούμε για να φτιάξουμε το καινούργιο μέρος του dir
   for (int i=0; i< len; i++){
     if(i < old_size){
@@ -250,7 +254,7 @@ void secondary_expand_dict(int new_depth, char* dir, int overflowed_bucket, int 
         bit_offset += sizeof(char)*INT_SIZE;
 
         //αν βρουμε τον overflowed bucket ως pointer τοτε δεν τον αποθηκευουμε
-        //αλλά στη θέση του μπαίνει το bucket που δημιουργήθηκε τελευταιό
+        //αλλά στη θέση του μπαίνει το bucket που δημιουργήθηκε τελευταίο
         if(atoi(pointer) == overflowed_bucket){
           char* new_bucket = itos(last);
           memcpy(dir+bit_offset,new_bucket,strlen(new_bucket));
@@ -274,7 +278,12 @@ extern int file_create_counter;
 extern int file_open_counter;
 extern int updateflag;
 
-void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key, Record primaryRecs[MAX_SECONDARY_RECORDS], int* unique_keys){
+/*for each record inside a secondary block(sbucket) we search and find
+its alias in the primary directory */
+
+//returns these records with the help of primaryRecs array
+//and the number of these records is the value of rec_counter
+void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key, Record primaryRecs[MAX_SECONDARY_RECORDS], int* rec_counter){
 
   BF_Block* block;
   BF_Block_Init(&block);
@@ -283,7 +292,8 @@ void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key, Record 
   BF_GetBlock(sindexDesc,0,block);
   char* info  = BF_Block_GetData(block);
 
-  //depth | attrName | attrLenght | fileName
+  //Παίρνουμε το filename του πρωτεύοντος αρχείου από το info
+  //και απο τον πίνακα ανοικτών αρχείων βρίσκουμε το indexDesc του πρωτεύοντος αρχείου
   int info_offset = INT_SIZE + ATTR_NAME_SIZE + INT_SIZE;
   char* filename1 = get_string(info_offset,FILE_NAME_SIZE,info);
   int indexDesc1;
@@ -296,6 +306,9 @@ void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key, Record 
 
   int offset = INT_SIZE*2;
   int counter = 0;
+
+  //Διατρέχουμε το secondary bucket και στα records που βρίσκουμε ίδιο πεδίο κλειδί με το index_key 
+  //με την βοηθεία του tuple id τους βρίσκουμε το αντίστοιχο αποθηκευμένο record στο πρωτεύον ευρετήριο
   for(int inner_rec=0; inner_rec<MAX_SECONDARY_RECORDS; inner_rec++){
 
     char* attr_name = get_string(offset,ATTR_NAME_SIZE,sbucket);
@@ -303,7 +316,10 @@ void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key, Record 
     int tupleid = get_int(offset,INT_SIZE,sbucket);
     offset += INT_SIZE;
 
+    //ελέγχουμε αν το πεδίο κλειδί είναι ιδιο με το index_key
     if(strcmp(attr_name,index_key) == 0){
+
+      //αν είναι τοτε με το tuple id βρισκουμε το record στο πρωτεύον ευρετήριο
       int pointer = tupleid/MAX_RECORDS;
       int pos = tupleid % MAX_RECORDS;
       BF_GetBlock(indexDesc1,pointer,block);
@@ -319,7 +335,7 @@ void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key, Record 
       bucket1_offset += sizeof(char)*SURNAME_SIZE;
       char* city = get_string(bucket1_offset,CITY_SIZE,bucket1);
 
-      (*unique_keys)++;
+      //και αποθηκεύουμε το record στον πίνακα που επιστρέφουμε
       strcpy(primaryRecs[counter].city,city);
       primaryRecs[counter].id = id;
       strcpy(primaryRecs[counter].name,name);
@@ -332,9 +348,12 @@ void find_in_primary_dir(char* sbucket, int sindexDesc, char* index_key, Record 
     }
     free(attr_name);
   }
+  //επίσης ενημερώνουμε τον counter για τα πόσα records βρήκαμε
+  *rec_counter = counter;
   BF_Block_Destroy(&block);
 }
 
+//returns the bucket where the index_key is hashing
 char* find_secondary_data(int sindexDesc, char* index_key){
   BF_Block* block;
   BF_Block_Init(&block);
@@ -358,38 +377,49 @@ char* find_secondary_data(int sindexDesc, char* index_key){
   return data;
 }
 
+//returns an array of all the unique index_keys that exist in the secondary directory
+//for efficiency initialize the array_of_keys with the value"-"
 void find_unique_keys(int sindexDesc, char array_of_keys[][ATTR_NAME_SIZE], int* unique_keys){
     BF_Block *block;
     BF_Block_Init(&block);
     int num_blocks;
     BF_GetBlockCounter(sindexDesc,&num_blocks);
 
+    //διατρέχουμε τo directory
     for(int i=DIR_BLOCKS+1; i<num_blocks; i++){
+      //παίρνουμε κάθε bucket με την σειρά
       BF_GetBlock(sindexDesc, i, block);
       char* data = BF_Block_GetData(block);
 
       int count = get_int(INT_SIZE, INT_SIZE, data);
       unsigned long offset = sizeof(char)*INT_SIZE*2;
 
+      //διατρέχουμε το bucket του directory
       for(int i=0; i<count; i++){
         char*  temp_key = get_string(offset,ATTR_NAME_SIZE,data);
         offset += sizeof(char)*ATTR_NAME_SIZE;
         offset += sizeof(char)*INT_SIZE;
 
         int flag = 0;
+
+        //ελέγχουμε αν έχουμε ξανασυναντήσει το πεδίο κλειδί της συγκεκριμένης εγγραφής
         for(int i=0; i<DIR_MAX_KEYS*MAX_SECONDARY_RECORDS; i++){
           if(strcmp(array_of_keys[i],temp_key) == 0){
             flag = 1;
             break;
           }
+          //αν ισχύει το παρακάτω σημαίνει οτι φτάσαμε στο "τελος" του πίνακα 
+          //οπότε δεν έχει νόημα να συνεχίσουμε να ψαχνουμε αν υπάρχει ήδη το κλειδί
           if(strcmp(array_of_keys[i],"-") == 0){
             break;
           }
         }
 
+        //αν το έχουμε ξανασυναντήσει τοτε προχωράμε στην επόμενη εγγραφή
         if(flag == 1){
           flag = 0;
         }
+        //αλλιώς το αποθηκεύουμε στον πίνακά μας
         else{
           strcpy(array_of_keys[*unique_keys],temp_key);
           (*unique_keys)++;
@@ -604,7 +634,7 @@ HT_ErrorCode SHT_SecondaryInsertEntry (int indexDesc,SecondaryRecord record  ) {
 }
 
 HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateArray ) {
-  //insert code here
+  //ενημερώνουμε την global μεταβλητή ότι έχει κληθεί η SHT_SecondaryUpdateEntry
   updateflag --;
 
   BF_Block* block;
@@ -624,9 +654,10 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
   
   char* dir  = BF_Block_GetData(block);
 
+  //Διατρέχουμε τον πίνακα updateArray που έχει τα αλλαγμένα records
   for(int rec=0; rec <MAX_RECORDS; rec++){
 
-    //Και παιρνουμε το bucket στο οποιο θα πρέπει να μπει το record
+    //ελέγχουμε να δούμε με βάση ποιο πεδιο-κλειδί θα κάνουμε το hash
     char* key;
     if(strcmp(attr_name,"City") == 0)
       key = updateArray[rec].city;
@@ -637,12 +668,15 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
     int pointer = get_bucket(hash_value,global_depth,dir);
     free(hash_value);
 
+    //Και παιρνουμε το bucket στο οποιο θα πρέπει να αλλάξουμε το tuple id ενός record
     if(BF_GetBlock(indexDesc, pointer, block) != BF_OK)
       return HT_ERROR;
     
     char* bucket = BF_Block_GetData(block);
 
     int offset = INT_SIZE*2;
+    //διατρέχουμε το bucket και ψάχνουμε την εγγραφή που έχει το ίδιο tuple id
+    //με το updateArray[rec].oldTupledId και όταν το βρούμε το ανανεώνουμε με το updateArray[rec].newTupleId
     for(int inner_rec=0; inner_rec<MAX_SECONDARY_RECORDS; inner_rec++){
       offset += ATTR_NAME_SIZE;
       int tupleid = get_int(offset,INT_SIZE,bucket);
@@ -666,13 +700,13 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
   BF_Block* block;
   BF_Block_Init(&block);
 
-  //Παιρνουμε το global depth απο το info block
   if(BF_GetBlock(sindexDesc,0,block) != BF_OK)
     return HT_ERROR;
   
   char* info  = BF_Block_GetData(block);
-
-  //depth | attrName | attrLenght | fileName
+  
+  //Μέσω του info block παίρνουμε το όνομα του πρωτεύοντος αρχείου
+  //και με τον πίνακα ανοικτών αρχείων βρίσκουμε το index του
   int info_offset = INT_SIZE + ATTR_NAME_SIZE + INT_SIZE;
   char* filename1 = get_string(info_offset,FILE_NAME_SIZE,info);
   int indexDesc1;
@@ -687,6 +721,8 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
   int offset = INT_SIZE*2;
   int counter = 0;
 
+  //Διατρέχουμε το Secondary block και για κάθε εγγραφή βρίσκουμε την
+  //αντίστοιχη εγγραφή στο πρωτεύον και την εκτυπώνουμε
   for(int inner_rec=0; inner_rec<MAX_SECONDARY_RECORDS; inner_rec++){
 
     char* attr_name = get_string(offset,ATTR_NAME_SIZE,sbucket);
@@ -694,7 +730,11 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
     int tupleid = get_int(offset,INT_SIZE,sbucket);
     offset += INT_SIZE;
 
+    //έλεγχος ισότητας attrname με index key
+    //και αν ισχύει συνεχίζουμε στην εκτύπωση της εγγραφής
     if(strcmp(attr_name,index_key) == 0){
+
+      //με την βοήθεια του tuple id βρίσκουμε την θέση της εγγραφής στο πρωτεύον ευρετήριο
       int pointer = tupleid/MAX_RECORDS;
       int pos = tupleid % MAX_RECORDS;
       if(BF_GetBlock(indexDesc1,pointer,block) != BF_OK)
@@ -728,7 +768,7 @@ HT_ErrorCode SHT_HashStatistics(char *filename ) {
   BF_Block *block;
   BF_Block_Init(&block);
 
-  //Βρίσκουμε το file και διατρέχουμε τα buckets του βλέπωντας το counter τους
+  //Βρίσκουμε το file και διατρέχουμε τα buckets του βλέποντας το counter τους
   for(int i=0; i<file_open_counter; i++){
     if(strcmp(open_files[i].file_name,filename) == 0){
       int index = open_files[i].index;
@@ -769,11 +809,13 @@ HT_ErrorCode SHT_HashStatistics(char *filename ) {
 
 HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) {
 
+  //πίνακες για να αποθηκευτούν τα primary records για κάθε αρχείο
+  //και counters για τα πόσα τετοια records θα βρούμε
   Record primaryRecs1[MAX_SECONDARY_RECORDS];
-  int counter1=0;
+  int counter1;
 
   Record primaryRecs2[MAX_SECONDARY_RECORDS];
-  int counter2=0;
+  int counter2;
 
 
   if(index_key != NULL){
@@ -794,6 +836,7 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
     char* sbucket2 = find_secondary_data(sindexDesc2,index_key);
     find_in_primary_dir(sbucket2,sindexDesc2,index_key,primaryRecs2,&counter2);
 
+    //έχοντας βρει τα κατάλληλα records από τα δύο αρχεία κάνουμε την ζεύξη
     for(int i=0; i<counter1; i++){
       for(int j=0; j<counter2; j++){
         if(strcmp(attrname,"City") == 0){
@@ -814,6 +857,8 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
     free(attrname);
     BF_Block_Destroy(&block);
   }
+  //άμα δεν έχουμε συγκεκριμένο πεδίο κλειδί τότε βρίσκουμε όλα τα διαφορετικά πεδιά-κλειδιά
+  //και κάνουμε την ζεύξη για καθένα από αυτά
   else{
 
     BF_Block *block;

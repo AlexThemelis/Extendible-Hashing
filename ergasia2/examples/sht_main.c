@@ -78,12 +78,9 @@ const char* cities[] = {
     }                         \
   }
 
+//το update flag είναι μια global μεταβλητη που ελέγχει αν έχει πραγματοποιηθεί split
+//στο πρωτεύον ευρετήριο με αποτέλεσμα να χρειαστεί η κλήση της SHT_SecondaryUpdateEntry()
 int updateflag = 0;
-
-/*
-frees
-inner join null
-*/
 
 int main() {
   BF_Init(LRU);
@@ -94,9 +91,12 @@ int main() {
   CALL_OR_DIE(HT_CreateIndex(FILE_NAME, GLOBAL_DEPT));
   CALL_OR_DIE(HT_OpenIndex(FILE_NAME, &indexDesc)); 
 
+  //Δεύτερο πρωτεύον ευρετήριο
   int indexDesc2;
   CALL_OR_DIE(HT_CreateIndex(SECOND_FILE_NAME, GLOBAL_DEPT));
   CALL_OR_DIE(HT_OpenIndex(SECOND_FILE_NAME, &indexDesc2)); 
+
+  //Έχουμε επιλέξει το δευτερεύον ευρετήριο στο παραδειγμά μας να χρησιμοποιεί τα cities ως πεδίο-κλειδί
 
   //Πρώτο δευτερεύον ευρετήριο
   int sindexDesc;
@@ -104,6 +104,7 @@ int main() {
   CALL_OR_DIE(SHT_CreateSecondaryIndex(SFILE_NAME,"City",ATTR_NAME_SIZE,GLOBAL_DEPT,FILE_NAME));
   CALL_OR_DIE(SHT_OpenSecondaryIndex(SFILE_NAME,&sindexDesc));
 
+  //Δεύτερο δευτερεύον ευρετήριο
   int sindexDesc2;
   CALL_OR_DIE(SHT_CreateSecondaryIndex(SECOND_SFILE_NAME,"City",ATTR_NAME_SIZE,GLOBAL_DEPT,SECOND_FILE_NAME));
   CALL_OR_DIE(SHT_OpenSecondaryIndex(SECOND_SFILE_NAME,&sindexDesc2));
@@ -115,7 +116,7 @@ int main() {
   int tupleId;
   UpdateRecordArray updateArray[MAX_RECORDS];
 
-  for (int id = 0; id < 256; ++id) {
+  for (int id = 0; id < 275; ++id) {
     // create a record
     record.id = id;
     r = rand() % 12;
@@ -125,8 +126,11 @@ int main() {
     r = rand() % 21;
     memcpy(record.city, cities[r], strlen(cities[r]) + 1);
 
+    //Από τις 275 εγραφές οι 140 πρώτες θα μπουν στο πρώτο προτεύον και οι επόμενες
+    //στο δεύτερο πρωτεύον ευρετήριο
     if(id < 140){
       CALL_OR_DIE(HT_InsertEntry(indexDesc, record, &tupleId, updateArray));
+      //έλεγχος ανάγκης κλήσης της SHT_SecondaryUpdateEntry
       if(updateflag == 1){
         SHT_SecondaryUpdateEntry(sindexDesc,updateArray);
       }
@@ -138,10 +142,12 @@ int main() {
       }
     }
 
+    //Δημιουργία του secondary record
     SecondaryRecord rec;
     rec.tupleId = tupleId;
     strcpy(rec.index_key,record.city);
 
+    //Παράλληλη ενημέρωση των δευτερευόντων ευρετηρίων για κάθε εγγραφή
     if(id < 140){
       CALL_OR_DIE(SHT_SecondaryInsertEntry(sindexDesc,rec));
     }
@@ -150,6 +156,7 @@ int main() {
     }
   }
 
+  //Κάνουμε uncomment το παρακάτω για να τρέξουμε την SHT_InnerJoin με NULL όρισμα
   //printf("Inner join with Null\n");
   //CALL_OR_DIE(SHT_InnerJoin(sindexDesc,sindexDesc2, NULL));
 
